@@ -1,0 +1,27 @@
+# Core async HTTP client (обновлено до последней стабильной)
+aiohttp==3.11.10
+
+# Synchronous HTTP requests (обновлено)  
+requests==2.33.0
+
+# Web automation for session handling (обновлено)
+selenium==4.28.0
+
+# JSON handling (built-in, but listed for clarity)
+# json - built-in
+
+# Async support (built-in, but listed for clarity)  
+# asyncio - built-in
+
+# Type annotations support (built-in in Python 3.9+)
+# typing - built-in
+
+# Path handling (built-in)
+# pathlib - built-in
+
+# Logging (built-in)
+# logging - built-in
+
+# Chrome WebDriver (install via apt-get or snap)
+# google-chrome-stable
+# chromium-chromedriver 

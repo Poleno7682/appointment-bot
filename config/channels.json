@@ -1,0 +1,92 @@
+{
+  "telegram": {
+    "bot_token": "7833218171:AAGnMHAN6WRxV7x78V-G57AKZIexeG3OipM",
+    "enabled": true
+  },
+  "channels": [
+    {
+      "id": "debiec_transport",
+      "name": "Dębiec Transport Services",
+      "chat_id": "-1002535535611",
+      "services": [
+        {
+          "branch_name": "DĘBIEC",
+          "branch_id": "0be84d4f70d09b6c9e4f39150e4d96ff170cb6f6aab05bd2ad84d2e464f9a499",
+          "service_name": "LICENCJE NA TRANSPORT - ODBIÓR",
+          "service_id": "e79211ebe2812b6573e0ef5a584bdf246776bc4ae6e19d848b95140ea395fd5f",
+          "qpId": "55",
+          "adult": 3,
+          "visits_per_day": 2,
+          "last_registered_date": "2025-08-19"
+        },
+        {
+          "branch_name": "DĘBIEC",
+          "branch_id": "0be84d4f70d09b6c9e4f39150e4d96ff170cb6f6aab05bd2ad84d2e464f9a499",
+          "service_name": "LICENCJE NA TRANSPORT - WNIOSKI",
+          "service_id": "9e74f04156632218d850bcb23f8cde3ce3aced39ffece81e59da7143299aa5be",
+          "qpId": "16",
+          "adult": 1,
+          "visits_per_day": 2,
+          "last_registered_date": "2025-07-14"
+        },
+        {
+          "branch_name": "DĘBIEC",
+          "branch_id": "0be84d4f70d09b6c9e4f39150e4d96ff170cb6f6aab05bd2ad84d2e464f9a499",
+          "service_name": "LICENCJE NA TRANSPORT - ODBIÓR",
+          "service_id": "e79211ebe2812b6573e0ef5a584bdf246776bc4ae6e19d848b95140ea395fd5f",
+          "qpId": "55",
+          "adult": 1,
+          "visits_per_day": 2,
+          "last_registered_date": "2025-08-19"
+        }
+      ]
+    },
+    {
+      "id": "gronowa_registry",
+      "name": "Gronowa Registry Services",
+      "chat_id": "-1002567348249",
+      "services": [
+        {
+          "branch_name": "GRONOWA",
+          "branch_id": "82431f5aac5af7c75a3be70c3de3d449396d10d39a51f95899011243f7a23097",
+          "service_name": "ADNOTACJE W DOW.REJESTR.",
+          "service_id": "f1ac89933015e86541b2c33bae1a8525e6c9efef0ebb185a2d71295a323ec78f",
+          "qpId": "42",
+          "adult": 1,
+          "visits_per_day": 2,
+          "last_registered_date": "2025-08-19"
+        },
+        {
+          "branch_name": "GRONOWA",
+          "branch_id": "82431f5aac5af7c75a3be70c3de3d449396d10d39a51f95899011243f7a23097",
+          "service_name": "ODBIÓR STAŁEGO DOW.REJESTR.",
+          "service_id": "d533101758ced4a7d791ebd125459c7e9a1db503d84458b2f522e5bcd9c8f2d3",
+          "qpId": "41",
+          "adult": 1,
+          "visits_per_day": 2,
+          "last_registered_date": "2025-08-12"
+        },
+        {
+          "branch_name": "GRONOWA",
+          "branch_id": "82431f5aac5af7c75a3be70c3de3d449396d10d39a51f95899011243f7a23097",
+          "service_name": "REJESTRACJA POJAZDÓW",
+          "service_id": "9b49308b28e0581530e3f65bbb67f164dbbde78895cd55a6902930900faa6570",
+          "qpId": "21",
+          "adult": 1,
+          "visits_per_day": 2,
+          "last_registered_date": "2025-07-14"
+        },
+        {
+          "branch_name": "GRONOWA",
+          "branch_id": "82431f5aac5af7c75a3be70c3de3d449396d10d39a51f95899011243f7a23097",
+          "service_name": "WYREJESTROWANIE POJAZDU",
+          "service_id": "f0a055ce7694dbf5c47871a48c331cfc0e1bda68cb0bcbba7b2dc675be8a7c8f",
+          "qpId": "43",
+          "adult": 1,
+          "visits_per_day": 2,
+          "last_registered_date": "2025-07-14"
+        }
+      ]
+    }
+  ]
+} 
