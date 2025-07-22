@@ -5,6 +5,9 @@
 
 set -e
 
+# Глобальные переменные
+PYTHON_CMD="python3.11"  # По умолчанию
+
 # Цвета для вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -57,21 +60,76 @@ install_dependencies() {
     apt update && apt upgrade -y
     
     log "Установка базовых пакетов..."
-    apt install -y curl wget git software-properties-common apt-transport-https ca-certificates gnupg lsb-release
+    apt install -y curl wget git software-properties-common apt-transport-https ca-certificates gnupg lsb-release unzip
     
-    # Python 3.11
-    log "Добавление репозитория Python 3.11..."
-    add-apt-repository ppa:deadsnakes/ppa -y
-    apt update
+    # Определяем версию Ubuntu
+    . /etc/os-release
+    UBUNTU_VERSION_NUM=$(echo $VERSION_ID | cut -d'.' -f1)
     
-    log "Установка Python 3.11 и виртуального окружения..."
-    apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
+    # Python 3.11 - проверяем поддержку PPA для версии Ubuntu
+    log "Проверка поддержки Python 3.11..."
+    
+    # Список поддерживаемых версий Ubuntu для deadsnakes PPA
+    SUPPORTED_UBUNTU_VERSIONS="20 22 24"
+    
+    if echo "$SUPPORTED_UBUNTU_VERSIONS" | grep -q "$UBUNTU_VERSION_NUM"; then
+        log "Добавление репозитория Python 3.11..."
+        add-apt-repository ppa:deadsnakes/ppa -y
+        apt update
+        
+        log "Установка Python 3.11 из PPA..."
+        apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
+        PYTHON_CMD="python3.11"
+    else
+        warn "Ubuntu $VERSION_ID не поддерживается в deadsnakes PPA"
+        
+        # Удаляем проблемный PPA если он был добавлен ранее
+        if [ -f /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-plucky.sources ]; then
+            log "Удаление несовместимого PPA deadsnakes..."
+            rm -f /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-plucky.sources
+            apt update
+        fi
+        
+        log "Проверка системного Python..."
+        
+        # Проверяем доступные версии Python в системе
+        if command -v python3.12 &> /dev/null; then
+            log "Используем системный Python 3.12"
+            apt install -y python3.12 python3.12-venv python3.12-dev python3-pip
+            PYTHON_CMD="python3.12"
+        elif command -v python3.11 &> /dev/null; then
+            log "Используем системный Python 3.11"
+            apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
+            PYTHON_CMD="python3.11"
+        elif command -v python3.10 &> /dev/null; then
+            log "Используем системный Python 3.10"
+            apt install -y python3.10 python3.10-venv python3.10-dev python3-pip
+            PYTHON_CMD="python3.10"
+        elif command -v python3.9 &> /dev/null; then
+            log "Используем системный Python 3.9"
+            apt install -y python3.9 python3.9-venv python3.9-dev python3-pip
+            PYTHON_CMD="python3.9"
+        elif command -v python3.8 &> /dev/null; then
+            log "Используем системный Python 3.8"
+            apt install -y python3.8 python3.8-venv python3.8-dev python3-pip
+            PYTHON_CMD="python3.8"
+        elif command -v python3 &> /dev/null; then
+            PYTHON_VERSION=$(python3 --version | awk '{print $2}')
+            log "Используем системный Python $PYTHON_VERSION"
+            apt install -y python3 python3-venv python3-dev python3-pip
+            PYTHON_CMD="python3"
+        else
+            error "Python 3.8+ не найден в системе"
+        fi
+    fi
+    
+    log "Используемая версия Python: $($PYTHON_CMD --version)"
     
     # Google Chrome
     log "Установка Google Chrome..."
     if ! command -v google-chrome &> /dev/null; then
-        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
         apt update
         apt install -y google-chrome-stable
     else
@@ -124,7 +182,7 @@ install_project() {
     cd appointment-bot
     
     log "Создание виртуального окружения..."
-    sudo -u appointment-bot python3.11 -m venv venv
+    sudo -u appointment-bot $PYTHON_CMD -m venv venv
     
     log "Установка Python зависимостей..."
     sudo -u appointment-bot ./venv/bin/pip install --upgrade pip
