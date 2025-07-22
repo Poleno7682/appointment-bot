@@ -1,74 +1,57 @@
-# Установка Appointment Bot с GitHub на Ubuntu Server
+# 🚀 Подробная инструкция по установке Appointment Bot
 
-Пошаговая инструкция по развертыванию проекта с GitHub репозитория на Ubuntu сервер.
+## 📋 Требования
 
-## 📋 Предварительные требования
+### Системные требования
+- **ОС**: Ubuntu 18.04+ (рекомендуется 20.04+)
+- **Архитектура**: x64 (amd64)
+- **RAM**: минимум 1GB (рекомендуется 2GB+)
+- **Диск**: минимум 2GB свободного места
+- **Сеть**: стабильное интернет-соединение
 
-- Ubuntu 20.04+ или Debian 11+
-- Доступ к серверу по SSH (root или sudo права)
-- Активное интернет соединение
+### Необходимые права
+- Доступ `sudo` (root права)
+- Доступ к интернету для скачивания зависимостей
 
-## 🚀 Автоматическая установка (Рекомендуется)
+---
 
-### Шаг 1: Подключение к серверу и клонирование
+## 🔥 Метод 1: Автоматическая установка одной командой (РЕКОМЕНДУЕТСЯ)
 
-```bash
-# Подключитесь к серверу
-ssh user@your-server-ip
-
-# Обновите систему
-sudo apt update && sudo apt upgrade -y
-
-# Установите git если не установлен
-sudo apt install git -y
-
-# Клонируйте проект
-git clone https://github.com/YOUR_USERNAME/appointment-bot.git
-cd appointment-bot
-```
-
-### Шаг 2: Запуск автоматической установки
+### Установка
 
 ```bash
-# Сделайте скрипт исполняемым
-chmod +x deploy.sh
-
-# Запустите установку
-sudo ./deploy.sh
+# Скачайте и запустите скрипт установки
+wget https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/install.sh && chmod +x install.sh && sudo ./install.sh
 ```
 
-**Скрипт автоматически:**
-- Установит все системные зависимости
-- Создаст пользователя сервиса `appointment`
-- Настроит Python окружение
-- Установит Chrome и ChromeDriver
-- Создаст systemd сервис
-- Настроит автозагрузку
-
-### Шаг 3: Настройка конфигурации
-
+**Альтернативно с curl:**
 ```bash
-# Настройте Telegram токены
-appointment_bot-ctl config
-
-# Или вручную отредактируйте файл
-sudo nano /opt/appointment_bot/config/channels.json
+curl -L https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/install.sh -o install.sh && chmod +x install.sh && sudo ./install.sh
 ```
 
-### Шаг 4: Запуск сервиса
+### Что происходит во время установки
 
-```bash
-# Запустите сервис
-appointment_bot-ctl start
+1. **Проверка системы** - проверяется Ubuntu и права sudo
+2. **Обновление системы** - `apt update && apt upgrade`
+3. **Установка базовых пакетов** - curl, wget, git и др.
+4. **Установка Python 3.11** - добавляется PPA и устанавливается Python
+5. **Установка Google Chrome** - стабильная версия
+6. **Установка ChromeDriver** - автоматически подбирается совместимая версия
+7. **Установка Xvfb** - для headless режима браузера
+8. **Создание пользователя** - создается `appointment-bot`
+9. **Скачивание проекта** - клонируется с GitHub
+10. **Настройка Python** - создается venv, устанавливаются зависимости
+11. **Создание служб** - systemd службы для автозапуска
+12. **Настройка логирования** - logrotate, директории логов
+13. **Создание скриптов управления** - удобные команды
 
-# Проверьте статус
-appointment_bot-ctl status
+### Время установки
+- Обычно: 5-10 минут
+- На медленных серверах: до 15 минут
 
-# Посмотрите логи
-appointment_bot-ctl logs
-```
+---
 
-## 🛠️ Ручная установка
+## ⚙️ Метод 2: Ручная установка (для опытных пользователей)
 
 ### Шаг 1: Подготовка системы
 
@@ -76,348 +59,380 @@ appointment_bot-ctl logs
 # Обновление системы
 sudo apt update && sudo apt upgrade -y
 
-# Установка Python и зависимостей
-sudo apt install -y python3 python3-pip python3-venv git curl wget unzip
+# Установка базовых пакетов
+sudo apt install -y curl wget git software-properties-common apt-transport-https ca-certificates gnupg lsb-release
+```
 
-# Установка Chrome
+### Шаг 2: Установка Python 3.11
+
+```bash
+# Добавление PPA
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+
+# Установка Python 3.11
+sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
+```
+
+### Шаг 3: Установка Google Chrome
+
+```bash
+# Добавление ключа и репозитория
 wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
 echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+
+# Установка Chrome
 sudo apt update
 sudo apt install -y google-chrome-stable
+```
 
-# Установка ChromeDriver
-sudo apt install -y chromium-chromedriver
+### Шаг 4: Установка ChromeDriver
 
-# Установка Xvfb для headless режима
+```bash
+# Определение версии Chrome
+CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+')
+CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION%%.*}")
+
+# Скачивание и установка ChromeDriver
+wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
+sudo unzip /tmp/chromedriver.zip -d /tmp/
+sudo mv /tmp/chromedriver /usr/local/bin/
+sudo chmod +x /usr/local/bin/chromedriver
+rm /tmp/chromedriver.zip
+```
+
+### Шаг 5: Установка Xvfb
+
+```bash
 sudo apt install -y xvfb
 ```
 
-### Шаг 2: Создание пользователя и директорий
+### Шаг 6: Создание пользователя
 
 ```bash
-# Создание системного пользователя
-sudo useradd --system --home-dir /opt/appointment_bot --shell /bin/false appointment
+sudo useradd -m -s /bin/bash appointment-bot
+sudo usermod -aG sudo appointment-bot
+```
 
-# Создание директорий
-sudo mkdir -p /opt/appointment_bot
-sudo mkdir -p /var/log/appointment_bot
+### Шаг 7: Установка проекта
+
+```bash
+# Переход в домашнюю директорию пользователя
+sudo su - appointment-bot
+cd ~
 
 # Клонирование проекта
-sudo git clone https://github.com/YOUR_USERNAME/appointment-bot.git /opt/appointment_bot
-
-# Установка прав
-sudo chown -R appointment:appointment /opt/appointment_bot
-sudo chown -R appointment:appointment /var/log/appointment_bot
-```
-
-### Шаг 3: Настройка Python окружения
-
-```bash
-cd /opt/appointment_bot
+git clone https://github.com/Poleno7682/appointment-bot.git
+cd appointment-bot
 
 # Создание виртуального окружения
-sudo -u appointment python3 -m venv venv
+python3.11 -m venv venv
 
 # Активация и установка зависимостей
-sudo -u appointment bash -c "source venv/bin/activate && pip install --upgrade pip"
-sudo -u appointment bash -c "source venv/bin/activate && pip install -r requirements.txt"
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Выход из сессии пользователя
+exit
 ```
 
-### Шаг 4: Настройка конфигурации
+### Шаг 8: Создание systemd служб
 
+**Создание службы Xvfb:**
 ```bash
-# Настройка email
-sudo nano /opt/appointment_bot/config/settings.json
-
-# Настройка Telegram каналов
-sudo nano /opt/appointment_bot/config/channels.json
-```
-
-### Шаг 5: Создание systemd сервиса
-
-```bash
-# Создание сервисного файла
-sudo tee /etc/systemd/system/appointment_bot.service << 'EOF'
-[Unit]
-Description=Appointment Bot - UM Poznan Registration Service
-After=network.target
-Wants=network.target
-
-[Service]
-Type=simple
-User=appointment
-Group=appointment
-WorkingDirectory=/opt/appointment_bot
-ExecStart=/opt/appointment_bot/venv/bin/python /opt/appointment_bot/main.py
-Restart=always
-RestartSec=10
-StandardOutput=append:/var/log/appointment_bot/service.log
-StandardError=append:/var/log/appointment_bot/error.log
-
-# Environment variables
-Environment=PYTHONPATH=/opt/appointment_bot
-Environment=DISPLAY=:99
-
-# Security settings
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/opt/appointment_bot /var/log/appointment_bot
-
-# Resource limits
-LimitNOFILE=65536
-MemoryLimit=512M
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Настройка Xvfb
 sudo tee /etc/systemd/system/xvfb.service << 'EOF'
 [Unit]
-Description=Virtual Framebuffer X Server
+Description=X Virtual Framebuffer
 After=network.target
 
 [Service]
 Type=simple
+User=appointment-bot
+Group=appointment-bot
 ExecStart=/usr/bin/Xvfb :99 -screen 0 1024x768x24
 Restart=always
-User=root
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 EOF
-
-# Перезагрузка systemd и включение сервисов
-sudo systemctl daemon-reload
-sudo systemctl enable appointment_bot
-sudo systemctl enable xvfb
-sudo systemctl start xvfb
 ```
 
-### Шаг 6: Создание команд управления
-
+**Создание службы бота:**
 ```bash
-# Создание команды управления
-sudo tee /usr/local/bin/appointment_bot-ctl << 'EOF'
-#!/bin/bash
+sudo tee /etc/systemd/system/appointment-bot.service << 'EOF'
+[Unit]
+Description=Appointment Bot for UM Poznan
+After=network.target xvfb.service
+Requires=xvfb.service
 
-SERVICE_NAME="appointment_bot"
-LOG_DIR="/var/log/appointment_bot"
+[Service]
+Type=simple
+User=appointment-bot
+Group=appointment-bot
+WorkingDirectory=/home/appointment-bot/appointment-bot
+ExecStart=/home/appointment-bot/appointment-bot/venv/bin/python main.py
+Restart=always
+RestartSec=10
+Environment=DISPLAY=:99
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal
+StandardError=journal
 
-case "$1" in
-    start)
-        systemctl start $SERVICE_NAME
-        echo "Сервис запущен"
-        ;;
-    stop)
-        systemctl stop $SERVICE_NAME
-        echo "Сервис остановлен"
-        ;;
-    restart)
-        systemctl restart $SERVICE_NAME
-        echo "Сервис перезапущен"
-        ;;
-    status)
-        systemctl status $SERVICE_NAME
-        ;;
-    logs)
-        tail -f $LOG_DIR/service.log
-        ;;
-    errors)
-        tail -f $LOG_DIR/error.log
-        ;;
-    config)
-        nano /opt/appointment_bot/config/channels.json
-        ;;
-    *)
-        echo "Использование: $0 {start|stop|restart|status|logs|errors|config}"
-        exit 1
-        ;;
-esac
+[Install]
+WantedBy=multi-user.target
 EOF
-
-sudo chmod +x /usr/local/bin/appointment_bot-ctl
 ```
 
-## ⚙️ Настройка конфигурации
-
-### Основные настройки (settings.json)
-
-```json
-{
-  "email": "your-email@example.com",
-  "repeat_minutes": 30,
-  "prefixes": ["733", "668", "883", ...],
-  "logging": {
-    "level": "INFO",
-    "file": "appointment_bot.log"
-  }
-}
-```
-
-### Telegram каналы (channels.json)
-
-```json
-{
-  "telegram": {
-    "bot_token": "YOUR_BOT_TOKEN",
-    "enabled": true
-  },
-  "channels": [
-    {
-      "id": "channel_1",
-      "name": "Channel Name",
-      "chat_id": "CHAT_ID",
-      "services": [...]
-    }
-  ]
-}
-```
-
-## 🎯 Запуск и управление
+### Шаг 9: Активация служб
 
 ```bash
-# Запуск сервиса
-appointment_bot-ctl start
+# Перезагрузка systemd
+sudo systemctl daemon-reload
+
+# Включение автозапуска
+sudo systemctl enable xvfb
+sudo systemctl enable appointment-bot
+```
+
+---
+
+## 🔧 Настройка после установки
+
+### 1. Настройка Telegram Bot
+
+```bash
+# Отредактируйте конфигурацию каналов
+sudo nano /home/appointment-bot/appointment-bot/config/channels.json
+```
+
+**Обновите следующие параметры:**
+- `bot_token` - токен вашего Telegram бота
+- `chat_id` - ID чатов для уведомлений
+- Настройте services для каждого канала
+
+### 2. Настройка основных параметров
+
+```bash
+# Отредактируйте основные настройки
+sudo nano /home/appointment-bot/appointment-bot/config/settings.json
+```
+
+**При необходимости измените:**
+- `email` - ваш email для регистрации
+- `repeat_minutes` - интервал проверки (по умолчанию 30 минут)
+- Другие параметры согласно вашим требованиям
+
+### 3. Запуск бота
+
+```bash
+# Запуск всех служб
+sudo systemctl start xvfb
+sudo systemctl start appointment-bot
 
 # Проверка статуса
-appointment_bot-ctl status
-
-# Просмотр логов
-appointment_bot-ctl logs
-
-# Просмотр ошибок
-appointment_bot-ctl errors
-
-# Остановка сервиса
-appointment_bot-ctl stop
-
-# Перезапуск сервиса
-appointment_bot-ctl restart
-
-# Редактирование конфигурации
-appointment_bot-ctl config
+sudo systemctl status appointment-bot
 ```
 
-## 📊 Мониторинг
+---
 
-### Проверка системных сервисов
+## 📊 Управление ботом
+
+### Основные команды
 
 ```bash
-# Статус основного сервиса
-sudo systemctl status appointment_bot
+# Запуск
+sudo appointment-bot-ctl start
 
-# Статус Xvfb
+# Остановка
+sudo appointment-bot-ctl stop
+
+# Перезапуск
+sudo appointment-bot-ctl restart
+
+# Статус
+sudo appointment-bot-ctl status
+
+# Логи в реальном времени
+sudo appointment-bot-ctl logs
+
+# Включение автозапуска
+sudo appointment-bot-ctl enable
+
+# Отключение автозапуска
+sudo appointment-bot-ctl disable
+
+# Обновление с GitHub
+sudo appointment-bot-ctl update
+```
+
+### Системные команды
+
+```bash
+# Статус служб
+sudo systemctl status appointment-bot
 sudo systemctl status xvfb
 
-# Логи через journalctl
-sudo journalctl -u appointment_bot -f
+# Логи
+sudo journalctl -u appointment-bot -f
+sudo journalctl -u xvfb -f
 
-# Проверка процессов
-ps aux | grep appointment
+# Перезапуск служб
+sudo systemctl restart appointment-bot
+sudo systemctl restart xvfb
 ```
 
-### Мониторинг ресурсов
+---
+
+## 📝 Логирование
+
+### Расположение логов
+
+- **Системные логи**: `sudo journalctl -u appointment-bot`
+- **Логи приложения**: `/home/appointment-bot/appointment-bot/appointment_bot.log`
+- **Директория логов**: `/var/log/appointment-bot/`
+
+### Просмотр логов
 
 ```bash
-# Использование памяти
-sudo systemctl show appointment_bot --property=MemoryCurrent
+# Последние 50 записей
+sudo journalctl -u appointment-bot -n 50
 
-# Статистика сервиса
-sudo systemctl show appointment_bot
+# Логи в реальном времени
+sudo journalctl -u appointment-bot -f
 
-# Логи за последний час
-sudo journalctl -u appointment_bot --since "1 hour ago"
+# Логи за сегодня
+sudo journalctl -u appointment-bot --since today
+
+# Логи с ошибками
+sudo journalctl -u appointment-bot -p err
 ```
 
-## 🔧 Обновление проекта
+---
+
+## 🔄 Обновление
+
+### Автоматическое обновление
 
 ```bash
-# Остановка сервиса
-appointment_bot-ctl stop
-
-# Переход в директорию проекта
-cd /opt/appointment_bot
-
-# Обновление кода
-sudo -u appointment git pull origin main
-
-# Обновление зависимостей (если нужно)
-sudo -u appointment bash -c "source venv/bin/activate && pip install -r requirements.txt"
-
-# Перезапуск сервиса
-appointment_bot-ctl start
+sudo appointment-bot-ctl update
 ```
 
-## 🛡️ Безопасность
-
-### Настройка firewall
+### Ручное обновление
 
 ```bash
-# Установка UFW
-sudo apt install ufw
-
-# Базовые правила
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow ssh
-sudo ufw enable
+cd /home/appointment-bot/appointment-bot
+sudo -u appointment-bot git pull origin main
+sudo -u appointment-bot ./venv/bin/pip install -r requirements.txt
+sudo systemctl restart appointment-bot
 ```
 
-### Настройка автоматических обновлений
+---
 
+## 🛠️ Устранение неполадок
+
+### Проблема: Бот не запускается
+
+**Решение:**
 ```bash
-# Установка unattended-upgrades
-sudo apt install unattended-upgrades
+# Проверьте статус
+sudo systemctl status appointment-bot
 
-# Конфигурация
-sudo dpkg-reconfigure -plow unattended-upgrades
+# Проверьте логи
+sudo journalctl -u appointment-bot -n 20
+
+# Проверьте конфигурацию
+sudo nano /home/appointment-bot/appointment-bot/config/channels.json
 ```
 
-## 🚨 Устранение неполадок
+### Проблема: Ошибки Chrome/ChromeDriver
 
-### Проблемы с Chrome/ChromeDriver
-
+**Решение:**
 ```bash
-# Переустановка Chrome
+# Проверьте Xvfb
+sudo systemctl status xvfb
+
+# Переустановите Chrome
 sudo apt-get remove google-chrome-stable
 sudo apt-get install google-chrome-stable
 
-# Проверка ChromeDriver
-which chromedriver
+# Проверьте ChromeDriver
 chromedriver --version
-
-# Проверка Xvfb
-sudo systemctl status xvfb
+google-chrome --version
 ```
 
-### Проблемы с правами
+### Проблема: Ошибки Telegram
+
+**Проверьте:**
+1. Корректность `bot_token`
+2. Правильность `chat_id`
+3. Добавлен ли бот в каналы
+4. Имеет ли бот права администратора
+
+### Проблема: Высокое потребление ресурсов
+
+**Решение:**
+```bash
+# Проверьте процессы
+ps aux | grep appointment
+ps aux | grep chrome
+
+# Проверьте память
+free -h
+
+# Перезапустите службы
+sudo systemctl restart appointment-bot
+sudo systemctl restart xvfb
+```
+
+---
+
+## 🔐 Безопасность
+
+### Рекомендации по безопасности
+
+1. **Ограничьте доступ к конфигурации:**
+   ```bash
+   sudo chmod 600 /home/appointment-bot/appointment-bot/config/*.json
+   ```
+
+2. **Регулярно обновляйте систему:**
+   ```bash
+   sudo apt update && sudo apt upgrade
+   ```
+
+3. **Мониторьте логи на подозрительную активность**
+
+4. **Используйте firewall:**
+   ```bash
+   sudo ufw enable
+   sudo ufw allow ssh
+   ```
+
+### Резервное копирование
 
 ```bash
-# Восстановление прав
-sudo chown -R appointment:appointment /opt/appointment_bot
-sudo chown -R appointment:appointment /var/log/appointment_bot
+# Создание backup конфигурации
+sudo cp -r /home/appointment-bot/appointment-bot/config /backup/appointment-bot-config-$(date +%Y%m%d)
+
+# Восстановление из backup
+sudo cp -r /backup/appointment-bot-config-YYYYMMDD/* /home/appointment-bot/appointment-bot/config/
+sudo systemctl restart appointment-bot
 ```
 
-### Проблемы с Python зависимостями
+---
 
-```bash
-# Переустановка окружения
-cd /opt/appointment_bot
-sudo -u appointment rm -rf venv
-sudo -u appointment python3 -m venv venv
-sudo -u appointment bash -c "source venv/bin/activate && pip install -r requirements.txt"
-```
-
-## 📞 Получение помощи
+## 📞 Поддержка
 
 При возникновении проблем:
 
-1. Проверьте логи: `appointment_bot-ctl logs`
-2. Проверьте статус: `appointment_bot-ctl status`
-3. Проверьте конфигурацию: `appointment_bot-ctl config`
-4. Перезапустите сервис: `appointment_bot-ctl restart`
+1. Проверьте логи: `sudo appointment-bot-ctl logs`
+2. Проверьте статус: `sudo appointment-bot-ctl status`  
+3. Изучите документацию: [GitHub Repository](https://github.com/Poleno7682/appointment-bot)
+4. Проверьте системные требования
+5. Убедитесь в корректности конфигурации
 
-Для диагностики создайте issue в GitHub репозитории с приложением логов и описанием проблемы. 
+---
+
+**✅ После успешной установки бот готов к работе!** 

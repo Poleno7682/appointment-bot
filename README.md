@@ -40,37 +40,38 @@ appointment_bot/
 - **Диск**: 500MB свободного места
 - **Сеть**: Доступ к интернету
 
-## Быстрая установка
+## 🚀 Быстрая установка
 
-### 1. Клонирование репозитория
-
-```bash
-# Клонируйте проект с GitHub
-git clone https://github.com/YOUR_USERNAME/appointment-bot.git
-cd appointment-bot
-
-# Или скачайте ZIP архив и распакуйте
-wget https://github.com/YOUR_USERNAME/appointment-bot/archive/main.zip
-unzip main.zip
-cd appointment-bot-main
-```
-
-### 2. Развертывание
+### Автоматическая установка одной командой
 
 ```bash
-# Сделайте скрипт исполняемым
-chmod +x deploy.sh
-
-# Запустите установку (требуются права root)
-sudo ./deploy.sh
+# Установка одной командой (Ubuntu)
+wget https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/install.sh && chmod +x install.sh && sudo ./install.sh
 ```
 
-Скрипт автоматически:
-- Обновит систему
-- Установит все зависимости (Chrome, ChromeDriver, Python пакеты)
-- Создаст пользователя сервиса
-- Настроит systemd сервис
-- Добавит сервис в автозагрузку
+**Альтернативные способы:**
+```bash
+# Если wget недоступен
+curl -L https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/install.sh -o install.sh && chmod +x install.sh && sudo ./install.sh
+
+# Или скачайте и запустите вручную
+wget https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/install.sh
+chmod +x install.sh
+sudo ./install.sh
+```
+
+**🔥 Что делает скрипт автоматически:**
+- ✅ Проверяет совместимость с Ubuntu
+- ✅ Обновляет систему
+- ✅ Устанавливает Python 3.11, Chrome, ChromeDriver
+- ✅ Скачивает проект с GitHub
+- ✅ Создает пользователя `appointment-bot`
+- ✅ Настраивает виртуальное окружение
+- ✅ Устанавливает Python зависимости
+- ✅ Создает systemd службы (appointment-bot, xvfb)
+- ✅ Настраивает автозапуск
+- ✅ Создает удобный скрипт управления
+- ✅ Настраивает логирование
 
 ### 3. Настройка
 
@@ -78,43 +79,46 @@ sudo ./deploy.sh
 
 Отредактируйте файл каналов:
 ```bash
-nano /opt/appointment_bot/config/channels.json
+sudo nano /home/appointment-bot/appointment-bot/config/channels.json
 ```
 
 Замените `bot_token` на ваш токен и настройте `chat_id` для каналов.
 
 #### Настройка email
 
-Email настраивается автоматически во время установки, но можно изменить в:
+Email можно изменить в основных настройках:
 ```bash
-nano /opt/appointment_bot/config/settings.json
+sudo nano /home/appointment-bot/appointment-bot/config/settings.json
 ```
 
 ## Управление сервисом
 
-После установки доступна команда `appointment_bot-ctl`:
+После установки доступна команда `appointment-bot-ctl`:
 
 ```bash
 # Запуск сервиса
-appointment_bot-ctl start
+sudo appointment-bot-ctl start
 
-# Остановка сервиса
-appointment_bot-ctl stop
+# Остановка сервиса  
+sudo appointment-bot-ctl stop
 
 # Перезапуск сервиса
-appointment_bot-ctl restart
+sudo appointment-bot-ctl restart
 
 # Статус сервиса
-appointment_bot-ctl status
+sudo appointment-bot-ctl status
 
 # Просмотр логов
-appointment_bot-ctl logs
+sudo appointment-bot-ctl logs
 
-# Просмотр ошибок
-appointment_bot-ctl errors
+# Включение автозапуска
+sudo appointment-bot-ctl enable
 
-# Редактирование конфигурации
-appointment_bot-ctl config
+# Отключение автозапуска
+sudo appointment-bot-ctl disable
+
+# Обновление проекта с GitHub
+sudo appointment-bot-ctl update
 ```
 
 ## Конфигурация
@@ -178,25 +182,25 @@ appointment_bot-ctl config
 ## Логирование
 
 Логи сохраняются в:
-- `/var/log/appointment_bot/service.log` - основные логи
-- `/var/log/appointment_bot/error.log` - ошибки
-- `/opt/appointment_bot/appointment_bot.log` - детальные логи приложения
+- `journalctl -u appointment-bot` - системные логи службы
+- `/var/log/appointment-bot/` - директория логов приложения  
+- `/home/appointment-bot/appointment-bot/appointment_bot.log` - детальные логи приложения
 
 ## Мониторинг
 
 ### Статус сервиса
 ```bash
-systemctl status appointment_bot
+sudo systemctl status appointment-bot
 ```
 
 ### Автозагрузка
 ```bash
-systemctl is-enabled appointment_bot
+sudo systemctl is-enabled appointment-bot
 ```
 
 ### Системные ресурсы
 ```bash
-journalctl -u appointment_bot -f
+sudo journalctl -u appointment-bot -f
 ```
 
 ## Архитектура
@@ -222,18 +226,20 @@ journalctl -u appointment_bot -f
 
 1. Проверьте логи:
    ```bash
-   appointment_bot-ctl logs
-   appointment_bot-ctl errors
+   sudo appointment-bot-ctl logs
+   sudo journalctl -u appointment-bot -n 50
    ```
 
 2. Проверьте конфигурацию:
    ```bash
-   appointment_bot-ctl config
+   sudo nano /home/appointment-bot/appointment-bot/config/channels.json
+   sudo nano /home/appointment-bot/appointment-bot/config/settings.json
    ```
 
 3. Проверьте системный статус:
    ```bash
-   systemctl status appointment_bot
+   sudo systemctl status appointment-bot
+   sudo systemctl status xvfb
    ```
 
 ### Chrome/ChromeDriver ошибки
@@ -244,7 +250,7 @@ sudo apt-get remove google-chrome-stable
 sudo apt-get install google-chrome-stable
 
 # Проверьте Xvfb
-systemctl status xvfb
+sudo systemctl status xvfb
 ```
 
 ### Telegram ошибки
@@ -255,7 +261,7 @@ systemctl status xvfb
 
 ## Безопасность
 
-- Сервис работает под отдельным пользователем `appointment`
+- Сервис работает под отдельным пользователем `appointment-bot`
 - Ограниченные права доступа к файловой системе
 - Изоляция процессов через systemd
 - Логирование всех операций
