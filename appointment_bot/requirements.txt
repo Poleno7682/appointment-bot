@@ -1,0 +1,8 @@
+# Core async HTTP client (обновлено до последней стабильной)
+aiohttp==3.11.10
+
+# Synchronous HTTP requests (исправлено на актуальную версию)
+requests==2.32.4
+
+# Web automation for session handling (обновлено)
+selenium==4.28.0 
