@@ -6,7 +6,7 @@
 set -e
 
 # Глобальные переменные
-PYTHON_CMD="python3.11"  # По умолчанию
+PYTHON_CMD="python3"  # По умолчанию
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -93,7 +93,11 @@ install_dependencies() {
         log "Проверка системного Python..."
         
         # Проверяем доступные версии Python в системе
-        if command -v python3.12 &> /dev/null; then
+        if command -v python3.13 &> /dev/null; then
+            log "Используем системный Python 3.13"
+            apt install -y python3.13 python3.13-venv python3.13-dev python3-pip
+            PYTHON_CMD="python3.13"
+        elif command -v python3.12 &> /dev/null; then
             log "Используем системный Python 3.12"
             apt install -y python3.12 python3.12-venv python3.12-dev python3-pip
             PYTHON_CMD="python3.12"
@@ -136,16 +140,53 @@ install_dependencies() {
         log "Google Chrome уже установлен"
     fi
     
-    # ChromeDriver
+    # ChromeDriver через новый Chrome for Testing API
     log "Установка ChromeDriver..."
-    CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+')
-    CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION%%.*}")
+    CHROME_VERSION=$(google-chrome --version | awk '{print $3}')
+    log "Версия Chrome: $CHROME_VERSION"
     
-    wget -O /tmp/chromedriver.zip "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
+    # Используем новый Chrome for Testing API
+    CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/latest-patch-versions-per-milestone-with-downloads.json" | \
+        python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    version = '$CHROME_VERSION'.split('.')[0]  # Берем только major версию
+    if 'milestones' in data and version in data['milestones']:
+        downloads = data['milestones'][version]['downloads']
+        if 'chromedriver' in downloads:
+            for item in downloads['chromedriver']:
+                if item['platform'] == 'linux64':
+                    print(item['url'])
+                    break
+    else:
+        # Fallback - используем latest stable
+        print('https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip')
+except:
+    print('https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip')
+")
+    
+    if [ -z "$CHROMEDRIVER_URL" ]; then
+        # Fallback URL для стабильной версии
+        CHROMEDRIVER_URL="https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip"
+        warn "Не удалось определить точную версию ChromeDriver, используем стабильную версию"
+    fi
+    
+    log "Скачиваем ChromeDriver: $CHROMEDRIVER_URL"
+    wget -O /tmp/chromedriver.zip "$CHROMEDRIVER_URL"
     unzip /tmp/chromedriver.zip -d /tmp/
-    mv /tmp/chromedriver /usr/local/bin/
-    chmod +x /usr/local/bin/chromedriver
-    rm /tmp/chromedriver.zip
+    
+    # Найти исполняемый файл chromedriver в распакованной папке
+    CHROMEDRIVER_PATH=$(find /tmp -name "chromedriver" -type f 2>/dev/null | head -1)
+    if [ -n "$CHROMEDRIVER_PATH" ]; then
+        mv "$CHROMEDRIVER_PATH" /usr/local/bin/chromedriver
+        chmod +x /usr/local/bin/chromedriver
+        log "ChromeDriver установлен: $(chromedriver --version)"
+    else
+        error "Не удалось найти исполняемый файл chromedriver"
+    fi
+    
+    rm -rf /tmp/chromedriver.zip /tmp/chromedriver-linux64
     
     # Xvfb для headless режима
     log "Установка Xvfb..."
