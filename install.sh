@@ -145,13 +145,14 @@ install_dependencies() {
     CHROME_VERSION=$(google-chrome --version | awk '{print $3}')
     log "Версия Chrome: $CHROME_VERSION"
     
-    # Используем новый Chrome for Testing API
-    CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/latest-patch-versions-per-milestone-with-downloads.json" | \
-        python3 -c "
+         # Используем новый Chrome for Testing API
+     CHROME_MAJOR_VERSION=$(echo "$CHROME_VERSION" | cut -d'.' -f1)
+     CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/latest-patch-versions-per-milestone-with-downloads.json" | \
+         python3 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
-    version = '$CHROME_VERSION'.split('.')[0]  # Берем только major версию
+    version = '$CHROME_MAJOR_VERSION'
     if 'milestones' in data and version in data['milestones']:
         downloads = data['milestones'][version]['downloads']
         if 'chromedriver' in downloads:
@@ -160,10 +161,17 @@ try:
                     print(item['url'])
                     break
     else:
-        # Fallback - используем latest stable
-        print('https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip')
+        # Fallback для Chrome 138
+        if version == '138':
+            print('https://storage.googleapis.com/chrome-for-testing-public/138.0.7204.168/linux64/chromedriver-linux64.zip')
+        else:
+            print('https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip')
 except:
-    print('https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip')
+    # Fallback для Chrome 138
+    if '$CHROME_MAJOR_VERSION' == '138':
+        print('https://storage.googleapis.com/chrome-for-testing-public/138.0.7204.168/linux64/chromedriver-linux64.zip')
+    else:
+        print('https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip')
 ")
     
     if [ -z "$CHROMEDRIVER_URL" ]; then

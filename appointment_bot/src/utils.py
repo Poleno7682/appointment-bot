@@ -6,10 +6,7 @@ import random
 import requests
 import subprocess
 import os
-import asyncio
-import aiohttp
-import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -18,36 +15,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
-def generate_phone(prefixes: List[str] = None) -> str:
-    """
-    Генерирует случайный телефонный номер.
-    
-    Args:
-        prefixes: Список доступных префиксов (опционально)
-        
-    Returns:
-        Сгенерированный номер телефона
-    """
-    if not prefixes:
-        prefixes = ["733", "668", "883", "602", "690", "577", "886", "880", "517", "784", "793", "697", "510", "881", "575"]
-    
+def generate_phone():
+    """Генерирует случайный номер телефона"""
+    prefixes = ["733", "668", "883", "602", "690", "577", "886", "880", "517", "784", "793", "697", "510", "881", "575"]
     prefix = random.choice(prefixes)
     number = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-    return f"48{prefix}{number}"
-
-
-def find_next_dates(dates: List[dict], last_date: Optional[str]) -> List[str]:
-    """
-    Находит следующие доступные даты после указанной.
-    
-    Args:
-        dates: Список дат от API
-        last_date: Последняя зарегистрированная дата
-        
-    Returns:
-        Список доступных дат
-    """
-    return [d["date"] for d in dates if not last_date or d["date"] > last_date]
+    return f"{prefix}{number}"
 
 
 def filter_dates_by_week(dates, target_week):
@@ -66,43 +39,7 @@ def retry_request(func, *args, max_retries=5, initial_delay=1, delay_multiplier=
             
             delay = initial_delay * (delay_multiplier ** attempt)
             time.sleep(delay + random.uniform(0, 1))
-
-
-async def retry_request_async(session: aiohttp.ClientSession, method: str, url: str, 
-                       max_retries: int = 5, initial_delay: int = 1, 
-                       delay_multiplier: int = 2, **kwargs) -> str:
-    """
-    Выполняет асинхронный HTTP запрос с повторными попытками при ошибке.
     
-    Args:
-        session: Сессия aiohttp
-        method: HTTP метод
-        url: URL для запроса
-        max_retries: Максимальное количество попыток
-        initial_delay: Начальная задержка в секундах
-        delay_multiplier: Множитель задержки
-        **kwargs: Дополнительные параметры для запроса
-        
-    Returns:
-        Ответ сервера в виде строки
-        
-    Raises:
-        Exception: Если все попытки неудачны
-    """
-    for attempt in range(max_retries):
-        try:
-            async with session.request(method, url, **kwargs) as response:
-                response.raise_for_status()
-                return await response.text()
-        except Exception as e:
-            if attempt == max_retries - 1:
-                logging.error(f"Все попытки исчерпаны для {method} {url}: {e}")
-                raise e
-            
-            delay = initial_delay * (delay_multiplier ** attempt)
-            logging.warning(f"Попытка {attempt + 1} неудачна для {method} {url}: {e}. Повтор через {delay}с")
-            await asyncio.sleep(delay + random.uniform(0, 1))
-
 
 def get_jsessionid_and_csrf(site_url: str) -> Optional[Dict[str, str]]:
     """
@@ -179,7 +116,7 @@ def get_jsessionid_and_csrf(site_url: str) -> Optional[Dict[str, str]]:
                 driver.quit()
                 
     except Exception as e:
-        logging.error(f"Ошибка получения JSESSIONID: {e}")
+        print(f"Ошибка получения JSESSIONID: {e}")
         return None
 
 
@@ -237,11 +174,11 @@ def check_chromedriver_compatibility():
         chromedriver_major = chromedriver_version.split('.')[0]
         
         if chrome_major != chromedriver_major:
-            logging.warning(f"ChromeDriver {chromedriver_version} may not be compatible with Chrome {chrome_version}")
+            print(f"WARNING: ChromeDriver {chromedriver_version} may not be compatible with Chrome {chrome_version}")
             return False
             
         return True
         
     except Exception as e:
-        logging.error(f"Ошибка проверки совместимости: {e}")
+        print(f"Ошибка проверки совместимости: {e}")
         return False 

@@ -1,7 +1,9 @@
 {
   "telegram": {
     "bot_token": "7833218171:AAGnMHAN6WRxV7x78V-G57AKZIexeG3OipM",
-    "enabled": true
+    "enabled": true,
+    "polling_timeout": 10,
+    "webhook_mode": false
   },
   "channels": [
     {
