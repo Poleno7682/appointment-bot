@@ -244,4 +244,52 @@ def check_chromedriver_compatibility():
         
     except Exception as e:
         logging.error(f"Ошибка проверки совместимости: {e}")
-        return False 
+        return False
+
+
+# ФУНКЦИИ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ
+def get_chrome_session(site_url: str) -> tuple:
+    """
+    Обратная совместимость: получает JSESSIONID и создает requests сессию.
+    
+    Args:
+        site_url: URL сайта для получения cookies
+        
+    Returns:
+        Кортеж (requests_session, jsessionid)
+    """
+    session_data = get_jsessionid_and_csrf(site_url)
+    if not session_data:
+        raise Exception("Не удалось получить JSESSIONID")
+        
+    jsessionid = session_data['jsessionid']
+    session = create_session_with_jsessionid(jsessionid, session_data.get('csrf_token'))
+    
+    logging.info(f"✓ JSESSIONID получен: {jsessionid}")
+    return session, jsessionid
+
+
+def setup_csrf_token(session, base_url: str) -> str:
+    """
+    Обратная совместимость: получает и устанавливает CSRF токен для сессии.
+    
+    Args:
+        session: requests сессия
+        base_url: Базовый URL API
+        
+    Returns:
+        CSRF токен
+    """
+    for attempt in range(3):
+        try:
+            config = session.get(f"{base_url}/configuration", timeout=10).json()
+            csrf_token = config.get('token')
+            if csrf_token:
+                session.headers["X-Csrf-Token"] = csrf_token
+                logging.info(f"✓ X-Csrf-Token получен: {csrf_token}")
+                return csrf_token
+        except Exception as e:
+            logging.warning(f"Попытка {attempt + 1} получения CSRF токена: {e}")
+            time.sleep(2)
+    
+    raise Exception("Не удалось получить CSRF токен") 
