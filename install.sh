@@ -422,43 +422,38 @@ EOF
     log "Скрипт управления создан: appointment-bot-ctl"
 }
 
-# Создание примера конфигурации
+# Создание конфигурации из шаблонов
 create_sample_config() {
-    log "Создание примера конфигурации..."
+    log "Создание конфигурации из шаблонов..."
     
     CONFIG_DIR="/home/appointment-bot/appointment-bot/config"
     
-    # Создаем backup оригинальных файлов
-    cp "$CONFIG_DIR/settings.json" "$CONFIG_DIR/settings.json.example"
-    cp "$CONFIG_DIR/channels.json" "$CONFIG_DIR/channels.json.example"
+    # Создаем конфигурационные файлы из шаблонов
+    if [ ! -f "$CONFIG_DIR/settings.json" ]; then
+        if [ -f "$CONFIG_DIR/settings.json.example" ]; then
+            sudo -u appointment-bot cp "$CONFIG_DIR/settings.json.example" "$CONFIG_DIR/settings.json"
+            log "✓ Создан settings.json из шаблона"
+        else
+            log "⚠️ Шаблон settings.json.example не найден"
+        fi
+    else
+        log "✓ settings.json уже существует"
+    fi
     
-    # Создаем файл с инструкциями
-    cat > "$CONFIG_DIR/README_SETUP.txt" << 'EOF'
-🔧 НАСТРОЙКА КОНФИГУРАЦИИ
-
-1. Отредактируйте файл channels.json:
-   sudo nano /home/appointment-bot/appointment-bot/config/channels.json
-   
-   Обновите:
-   - bot_token: токен вашего Telegram бота
-   - chat_id: ID чатов для уведомлений
-   - service_id и branch_id: актуальные ID услуг
-
-2. Отредактируйте файл settings.json (при необходимости):
-   sudo nano /home/appointment-bot/appointment-bot/config/settings.json
-
-3. После настройки запустите бота:
-   sudo appointment-bot-ctl start
-
-4. Проверьте статус:
-   sudo appointment-bot-ctl status
-
-5. Просмотр логов:
-   sudo appointment-bot-ctl logs
-EOF
-
+    if [ ! -f "$CONFIG_DIR/channels.json" ]; then
+        if [ -f "$CONFIG_DIR/channels.json.example" ]; then
+            sudo -u appointment-bot cp "$CONFIG_DIR/channels.json.example" "$CONFIG_DIR/channels.json"
+            log "✓ Создан channels.json из шаблона"
+        else
+            log "⚠️ Шаблон channels.json.example не найден"
+        fi
+    else
+        log "✓ channels.json уже существует"
+    fi
+    
     chown -R appointment-bot:appointment-bot "$CONFIG_DIR"
-    log "Примеры конфигурации созданы в $CONFIG_DIR"
+    log "Конфигурация подготовлена в $CONFIG_DIR"
+    log "📖 Инструкции по настройке: $CONFIG_DIR/README.md"
 }
 
 # Финальная настройка
