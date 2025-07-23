@@ -70,39 +70,29 @@ if [ -f "config/settings.json" ]; then
     print_success "Сохранен settings.json"
 fi
 
+# Установка git если его нет
+if ! command -v git &> /dev/null; then
+    print_status "Установка git..."
+    apt update && apt install -y git
+    print_success "Git установлен"
+fi
+
 # Обновление кода
 print_status "Обновление исходного кода..."
 
-# Проверяем наличие git
-if command -v git &> /dev/null && [ -d ".git" ]; then
+# Проверяем наличие git репозитория
+if [ -d ".git" ]; then
     print_status "Обновление через Git..."
     git stash push -m "Backup before update $(date)" || true
-    git pull origin master
+    git pull origin main
     print_success "Код обновлен через Git"
 else
-    print_status "Git не найден, загрузка файлов напрямую..."
-    
-    # Список файлов для обновления (включая новую логику)
-    FILES=(
-        "src/appointment_service.py"
-        "src/config_manager.py"
-        "src/telegram_service.py"
-        "src/utils.py"
-        "main.py"
-        "requirements.txt"
-        "install.sh"
-        "update-server.sh"
-    )
-    
-    for file in "${FILES[@]}"; do
-        if curl -f -s -o "$file.tmp" "https://raw.githubusercontent.com/username/appointment-bot/master/$file"; then
-            mv "$file.tmp" "$file"
-            print_success "Обновлен: $file"
-        else
-            print_warning "Не удалось обновить: $file"
-            rm -f "$file.tmp"
-        fi
-    done
+    print_status "Инициализация Git репозитория..."
+    git init
+    git remote add origin https://github.com/Poleno7682/appointment-bot.git
+    git fetch origin
+    git checkout -b main origin/main
+    print_success "Git репозиторий инициализирован"
 fi
 
 # Восстановление конфигураций
@@ -117,16 +107,39 @@ if [ -f "$BACKUP_DIR/settings.json" ]; then
     print_success "Восстановлен settings.json"
 fi
 
-# Обновление зависимостей
-print_status "Обновление Python зависимостей..."
-if [ -f "/home/appointment-bot/venv/bin/activate" ]; then
-    source /home/appointment-bot/venv/bin/activate
+# Поиск виртуального окружения
+print_status "Поиск виртуального окружения Python..."
+VENV_PATHS=(
+    "/home/appointment-bot/appointment-bot/venv"
+    "/home/appointment-bot/venv"
+    "/opt/appointment-bot/venv"
+    "$BOT_DIR/venv"
+)
+
+VENV_FOUND=""
+for path in "${VENV_PATHS[@]}"; do
+    if [ -f "$path/bin/activate" ]; then
+        VENV_FOUND="$path"
+        break
+    fi
+done
+
+if [ -n "$VENV_FOUND" ]; then
+    print_success "Найдено виртуальное окружение: $VENV_FOUND"
+    
+    # Обновление зависимостей
+    print_status "Обновление Python зависимостей..."
+    source "$VENV_FOUND/bin/activate"
     pip install --upgrade pip
     pip install -r requirements.txt
     print_success "Зависимости обновлены"
 else
-    print_error "Виртуальное окружение не найдено!"
-    exit 1
+    print_warning "Виртуальное окружение не найдено, создаем новое..."
+    python3 -m venv "$BOT_DIR/venv"
+    source "$BOT_DIR/venv/bin/activate"
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    print_success "Создано новое виртуальное окружение и установлены зависимости"
 fi
 
 # Установка прав доступа
@@ -135,6 +148,12 @@ chown -R appointment-bot:appointment-bot /home/appointment-bot/
 chmod +x /home/appointment-bot/appointment-bot/main.py
 chmod +x /usr/local/bin/appointment-bot-ctl
 print_success "Права доступа установлены"
+
+# Создание директории для файла-маркера reset-цикла
+print_status "Создание директории для reset-цикла..."
+mkdir -p /var/lib/appointment-bot
+chown appointment-bot:appointment-bot /var/lib/appointment-bot
+print_success "Директория для reset-цикла создана"
 
 # Перезапуск сервиса
 print_status "Запуск обновленного сервиса..."
@@ -158,10 +177,12 @@ echo "  ✅ Немедленное обновление last_registered_date п�
 echo "  ✅ Обновление даты даже при отсутствии доступных времен"
 echo "  ✅ Улучшенное логирование процесса регистрации"
 echo "  ✅ Предотвращение повторной обработки тех же дат"
+echo "  ✅ 🔄 НОВЫЙ Reset-цикл для поиска освободившихся мест"
 
 print_status "📋 Команды для мониторинга:"
 echo "  sudo appointment-bot-ctl status   # Статус сервиса"
 echo "  sudo appointment-bot-ctl logs     # Логи в реальном времени"
 echo "  sudo journalctl -u appointment-bot --since '1 hour ago' | grep 'last_registered_date'"
+echo "  sudo journalctl -u appointment-bot -f | grep -E '\[RESET\]|Reset-цикл'"
 
 print_status "📁 Резервная копия конфигураций сохранена в: $BACKUP_DIR" 
