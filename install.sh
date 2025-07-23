@@ -369,10 +369,37 @@ case "$1" in
     update)
         echo "Обновление проекта..."
         cd /home/appointment-bot/appointment-bot
-        sudo -u appointment-bot git pull origin main
+        
+        # Останавливаем бота
+        systemctl stop appointment-bot
+        
+        # Обновляем исходные файлы с GitHub
+        echo "Скачивание обновлений с GitHub..."
+        sudo -u appointment-bot wget -q -O src/appointment_service.py.new https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/src/appointment_service.py
+        sudo -u appointment-bot wget -q -O src/utils.py.new https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/src/utils.py
+        sudo -u appointment-bot wget -q -O src/telegram_service.py.new https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/src/telegram_service.py
+        sudo -u appointment-bot wget -q -O src/config_manager.py.new https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/src/config_manager.py
+        sudo -u appointment-bot wget -q -O main.py.new https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/main.py
+        sudo -u appointment-bot wget -q -O requirements.txt.new https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/requirements.txt
+        
+        # Проверяем успешность скачивания и применяем изменения
+        for file in src/appointment_service.py src/utils.py src/telegram_service.py src/config_manager.py main.py requirements.txt; do
+            if [ -f "${file}.new" ] && [ -s "${file}.new" ]; then
+                sudo -u appointment-bot mv "${file}.new" "${file}"
+                echo "✓ Обновлен: $file"
+            else
+                echo "✗ Ошибка обновления: $file"
+                rm -f "${file}.new"
+            fi
+        done
+        
+        # Обновляем зависимости Python
+        echo "Обновление зависимостей Python..."
         sudo -u appointment-bot ./venv/bin/pip install -r requirements.txt
-        systemctl restart appointment-bot
-        echo "Проект обновлен и перезапущен"
+        
+        # Запускаем бота
+        systemctl start appointment-bot
+        echo "✅ Проект обновлен и перезапущен"
         ;;
     *)
         echo "Использование: $0 {start|stop|restart|status|logs|enable|disable|update}"
