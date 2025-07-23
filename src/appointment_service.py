@@ -256,14 +256,15 @@ class AppointmentService:
         
         total_attempts = 0
         total_successes = 0
+        last_processed_date = None
         
         # Пробуем зарегистрироваться на ближайшие даты
         for date in available_dates:
             times = self._get_available_times(self._session, service_entry, date, slot_length)
             if not times:
-                # Если нет доступных времен, все равно обновляем дату
-                logging.info(f"[{service_entry.service_name}] Нет времен на {date}, обновляем последнюю дату")
-                self.config.update_service_last_date(channel_id, service_entry.service_id, date)
+                # Если нет доступных времен, запоминаем эту дату но НЕ обновляем сразу
+                logging.info(f"[{service_entry.service_name}] Нет времен на {date}")
+                last_processed_date = date
                 continue
             
             successful_registrations = 0
@@ -312,10 +313,12 @@ class AppointmentService:
                         
                         await self.telegram.send_visit_notification(visit_info, chat_id)
                     
-                    # ✅ СРАЗУ ПРОВЕРЯЕМ: достигнут ли лимит на день?
+                    # 🔑 ЗАПОМИНАЕМ ДАТУ но НЕ обновляем сразу в конфиге
+                    last_processed_date = date
+                    
+                    # ✅ ПРОВЕРЯЕМ: достигнут ли лимит на день?
                     if successful_registrations >= service_entry.visits_per_day:
                         logging.info(f"🎯 Лимит {service_entry.visits_per_day} визитов достигнут на {date}")
-                        self.config.update_service_last_date(channel_id, service_entry.service_id, date)
                         break  # Переходим к следующей дате
                 else:
                     logging.warning(f"Ошибка подтверждения записи для {time_slot}")
@@ -323,17 +326,24 @@ class AppointmentService:
                 # Задержка между попытками
                 time.sleep(random.uniform(5, 10))
             
-            # ✅ ЕСЛИ ЛИМИТ НЕ ДОСТИГНУТ, но время закончилось - тоже обновляем дату
-            if successful_registrations < service_entry.visits_per_day and not times_copy:
-                logging.info(f"⚠️ На {date} зарегистрировано только {successful_registrations}/{service_entry.visits_per_day} визитов (нет больше времен)")
-                self.config.update_service_last_date(channel_id, service_entry.service_id, date)
+            # Если на дате были регистрации или не осталось времен - запоминаем дату
+            if successful_registrations > 0 or not times_copy:
+                last_processed_date = date
+                if successful_registrations < service_entry.visits_per_day and not times_copy:
+                    logging.info(f"⚠️ На {date} зарегистрировано только {successful_registrations}/{service_entry.visits_per_day} визитов (нет больше времен)")
             
-            # ✅ ЕСЛИ БЫЛИ РЕГИСТРАЦИИ, возвращаем True
+            # ✅ ЕСЛИ БЫЛИ РЕГИСТРАЦИИ, можем прервать цикл
             if successful_registrations > 0:
-                # Показываем статистику для этой услуги
-                if total_attempts > total_successes:
-                    logging.info(f"📊 [{service_entry.service_name}] Статистика: {total_successes}/{total_attempts} успешных резерваций")
-                return True
+                break
+        
+        # 🔑 ОБНОВЛЯЕМ last_registered_date ТОЛЬКО В КОНЦЕ, если были регистрации
+        if total_successes > 0 and last_processed_date:
+            self.config.update_service_last_date(channel_id, service_entry.service_id, last_processed_date)
+            
+            # Показываем статистику для этой услуги
+            if total_attempts > total_successes:
+                logging.info(f"📊 [{service_entry.service_name}] Статистика: {total_successes}/{total_attempts} успешных резерваций")
+            return True
         
         # Показываем итоговую статистику если не было успехов
         if total_attempts > 0:
