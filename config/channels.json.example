@@ -1,0 +1,44 @@
+{
+  "telegram": {
+    "bot_token": "YOUR_BOT_TOKEN_HERE",
+    "enabled": true,
+    "polling_timeout": 10,
+    "webhook_mode": false
+  },
+  "channels": [
+    {
+      "id": "debiec_transport",
+      "name": "Dębiec Transport Services",
+      "chat_id": "YOUR_CHAT_ID_HERE",
+      "services": [
+        {
+          "branch_name": "DĘBIEC",
+          "branch_id": "YOUR_BRANCH_ID_HERE",
+          "service_name": "LICENCJE NA TRANSPORT - ODBIÓR",
+          "service_id": "YOUR_SERVICE_ID_HERE",
+          "qpId": "55",
+          "adult": 3,
+          "visits_per_day": 2,
+          "last_registered_date": "2025-08-19"
+        }
+      ]
+    },
+    {
+      "id": "gronowa_registry",
+      "name": "Gronowa Registry Services", 
+      "chat_id": "YOUR_SECOND_CHAT_ID_HERE",
+      "services": [
+        {
+          "branch_name": "GRONOWA",
+          "branch_id": "YOUR_BRANCH_ID_HERE",
+          "service_name": "YOUR_SERVICE_NAME",
+          "service_id": "YOUR_SERVICE_ID_HERE",
+          "qpId": "YOUR_QP_ID",
+          "adult": 1,
+          "visits_per_day": 1,
+          "last_registered_date": "2025-08-01"
+        }
+      ]
+    }
+  ]
+} 
