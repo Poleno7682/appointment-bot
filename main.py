@@ -59,7 +59,9 @@ class AppointmentBot:
         while self.running:
             try:
                 # 🔄 ОСНОВНАЯ ЛОГИКА (не изменяется)
+                logging.info("🔄 === НАЧАЛО ОСНОВНОЙ ЛОГИКИ ===")
                 await self.appointment_service.process_all_services()
+                logging.info("🔄 === КОНЕЦ ОСНОВНОЙ ЛОГИКИ ===")
                 
                 # 🆕 ПРОВЕРКА И ЗАПУСК RESET-ЦИКЛА
                 if self.config.reset_cycle_enabled:
@@ -67,8 +69,10 @@ class AppointmentBot:
                         self.config.reset_cycle_marker_file,
                         self.config.reset_cycle_interval_hours
                     ):
+                        logging.info("🔄 === НАЧАЛО RESET-ЦИКЛА ===")
                         logging.info("🔄 Время для reset-цикла наступило!")
                         await self.appointment_service.run_reset_cycle_for_all_services()
+                        logging.info("🔄 === КОНЕЦ RESET-ЦИКЛА ===")
                 
                 logging.info(f"Следующая проверка через {self.config.repeat_minutes} минут...")
                 
