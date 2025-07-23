@@ -125,4 +125,8 @@ session_*
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db
+
+# Configuration files (user-specific settings)
+config/channels.json
+config/settings.json 
