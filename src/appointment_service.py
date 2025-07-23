@@ -133,7 +133,8 @@ class AppointmentService:
                 logging.info(f"✓ Время {time_slot} зарезервировано: {appointment_id}")
                 return appointment_id
             else:
-                logging.warning(f"Не удалось зарезервировать {time_slot}")
+                # Изменено с WARNING на DEBUG для уменьшения шума в логах
+                logging.debug(f"Не удалось зарезервировать {time_slot} (слот занят или недоступен)")
                 return None
                 
         except Exception as e:
@@ -253,6 +254,9 @@ class AppointmentService:
             logging.info(f"[{service_entry.service_name}] Нет доступных дат после {service_entry.last_registered_date}")
             return False
         
+        total_attempts = 0
+        total_successes = 0
+        
         # Пробуем зарегистрироваться на ближайшие даты
         for date in available_dates:
             times = self._get_available_times(self._session, service_entry, date, slot_length)
@@ -269,6 +273,7 @@ class AppointmentService:
                 time_data = random.choice(times_copy)
                 times_copy.remove(time_data)
                 time_slot = time_data["time"]
+                total_attempts += 1
                 
                 # Резервируем время
                 appointment_id = self._reserve_appointment(
@@ -291,6 +296,7 @@ class AppointmentService:
                 # Подтверждаем запись
                 if self._confirm_appointment(self._session, appointment_id, service_entry, phone, slot_length):
                     successful_registrations += 1
+                    total_successes += 1
                     logging.info(f"✓ Визит зарегистрирован: {date} {time_slot} | {phone}")
                     
                     # Отправляем уведомление в Telegram
@@ -324,7 +330,14 @@ class AppointmentService:
             
             # ✅ ЕСЛИ БЫЛИ РЕГИСТРАЦИИ, возвращаем True
             if successful_registrations > 0:
+                # Показываем статистику для этой услуги
+                if total_attempts > total_successes:
+                    logging.info(f"📊 [{service_entry.service_name}] Статистика: {total_successes}/{total_attempts} успешных резерваций")
                 return True
+        
+        # Показываем итоговую статистику если не было успехов
+        if total_attempts > 0:
+            logging.info(f"📊 [{service_entry.service_name}] Все слоты заняты: 0/{total_attempts} резерваций")
         
         return False
     
@@ -409,6 +422,7 @@ class AppointmentService:
         
         logging.info(f"🔄 [RESET] Найдено {len(available_dates)} дат для проверки")
         total_registered = 0
+        total_attempts = 0
         
         # Пробуем зарегистрироваться на найденные даты
         for date in available_dates:
@@ -423,6 +437,7 @@ class AppointmentService:
                 time_data = random.choice(times_copy)
                 times_copy.remove(time_data)
                 time_slot = time_data["time"]
+                total_attempts += 1
                 
                 # Резервируем время
                 appointment_id = self._reserve_appointment(
@@ -473,9 +488,14 @@ class AppointmentService:
         
         if total_registered > 0:
             logging.info(f"🔄 [RESET] Завершен reset-цикл: зарегистрировано {total_registered} визитов для {service_entry.service_name}")
+            if total_attempts > total_registered:
+                logging.info(f"📊 [RESET] Статистика: {total_registered}/{total_attempts} успешных резерваций")
             return True
         else:
-            logging.info(f"🔄 [RESET] Reset-цикл завершен без регистраций для {service_entry.service_name}")
+            if total_attempts > 0:
+                logging.info(f"📊 [RESET] Все слоты заняты: 0/{total_attempts} попыток для {service_entry.service_name}")
+            else:
+                logging.info(f"🔄 [RESET] Reset-цикл завершен без регистраций для {service_entry.service_name}")
             return False
     
     def _get_available_dates_from_date(self, session: requests.Session, 
