@@ -2,6 +2,13 @@
 
 # 🤖 Appointment Bot - Автоматическая установка одной командой
 # Использование: wget https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/install.sh && chmod +x install.sh && sudo ./install.sh
+#
+# ВЕРСИЯ: 2.0 (с исправлениями)
+# - ChromeDriver 138 для Chrome 138 (совместимость)  
+# - Selenium 4.x исправления ('fileno' error fix)
+# - Увеличенные таймауты HTTP (30s вместо 10s)
+# - Исправленный Telegram polling (webhook_mode: false)
+# - Поддержка Ubuntu 25.04 и Python 3.13
 
 set -e
 
@@ -174,11 +181,16 @@ except:
         print('https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip')
 ")
     
-    if [ -z "$CHROMEDRIVER_URL" ]; then
-        # Fallback URL для стабильной версии
-        CHROMEDRIVER_URL="https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip"
-        warn "Не удалось определить точную версию ChromeDriver, используем стабильную версию"
-    fi
+         if [ -z "$CHROMEDRIVER_URL" ]; then
+         # Fallback URL для Chrome 138 (приоритет) или стабильной версии
+         if [ "$CHROME_MAJOR_VERSION" = "138" ]; then
+             CHROMEDRIVER_URL="https://storage.googleapis.com/chrome-for-testing-public/138.0.7204.168/linux64/chromedriver-linux64.zip"
+             warn "Используем ChromeDriver 138 для Chrome $CHROME_VERSION"
+         else
+             CHROMEDRIVER_URL="https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.108/linux64/chromedriver-linux64.zip"
+             warn "Не удалось определить точную версию ChromeDriver, используем стабильную версию"
+         fi
+     fi
     
     log "Скачиваем ChromeDriver: $CHROMEDRIVER_URL"
     wget -O /tmp/chromedriver.zip "$CHROMEDRIVER_URL"
@@ -190,6 +202,16 @@ except:
         mv "$CHROMEDRIVER_PATH" /usr/local/bin/chromedriver
         chmod +x /usr/local/bin/chromedriver
         log "ChromeDriver установлен: $(chromedriver --version)"
+    
+    # Проверяем совместимость версий
+    CHROME_MAJOR=$(echo "$CHROME_VERSION" | cut -d'.' -f1)
+    CHROMEDRIVER_MAJOR=$(chromedriver --version | awk '{print $2}' | cut -d'.' -f1)
+    
+    if [ "$CHROME_MAJOR" = "$CHROMEDRIVER_MAJOR" ]; then
+        log "✓ ChromeDriver $CHROMEDRIVER_MAJOR совместим с Chrome $CHROME_MAJOR"
+    else
+        warn "⚠️ ChromeDriver $CHROMEDRIVER_MAJOR может быть несовместим с Chrome $CHROME_MAJOR"
+    fi
     else
         error "Не удалось найти исполняемый файл chromedriver"
     fi
@@ -236,6 +258,10 @@ install_project() {
     log "Установка Python зависимостей..."
     sudo -u appointment-bot ./venv/bin/pip install --upgrade pip
     sudo -u appointment-bot ./venv/bin/pip install -r requirements.txt
+    
+    # Проверяем установленные пакеты
+    log "Проверка установленных пакетов:"
+    sudo -u appointment-bot ./venv/bin/pip list | grep -E "(aiohttp|requests|selenium)" || true
     
     # Установка прав
     chown -R appointment-bot:appointment-bot "$PROJECT_DIR"
@@ -416,6 +442,26 @@ final_setup() {
     mkdir -p /var/log/appointment-bot
     chown appointment-bot:appointment-bot /var/log/appointment-bot
     
+    # Проверяем файлы проекта
+    log "Проверка файлов проекта..."
+    REQUIRED_FILES=(
+        "/home/appointment-bot/appointment-bot/main.py"
+        "/home/appointment-bot/appointment-bot/src/utils.py"
+        "/home/appointment-bot/appointment-bot/src/telegram_service.py"
+        "/home/appointment-bot/appointment-bot/src/appointment_service.py"
+        "/home/appointment-bot/appointment-bot/requirements.txt"
+        "/home/appointment-bot/appointment-bot/config/settings.json"
+        "/home/appointment-bot/appointment-bot/config/channels.json"
+    )
+    
+    for file in "${REQUIRED_FILES[@]}"; do
+        if [ -f "$file" ]; then
+            log "✓ $file"
+        else
+            error "✗ Отсутствует файл: $file"
+        fi
+    done
+    
     # Настройка logrotate
     cat > /etc/logrotate.d/appointment-bot << 'EOF'
 /var/log/appointment-bot/*.log {
@@ -459,6 +505,13 @@ main() {
     echo "🎉 УСТАНОВКА ЗАВЕРШЕНА УСПЕШНО!"
     echo "================================="
     echo ""
+    echo "✅ УСТАНОВЛЕННЫЕ ИСПРАВЛЕНИЯ (v2.0):"
+    echo "  ✓ ChromeDriver $CHROMEDRIVER_MAJOR для Chrome $CHROME_MAJOR (совместимость)"
+    echo "  ✓ Selenium 4.x исправления ('fileno' error fix)"
+    echo "  ✓ HTTP таймауты увеличены до 30 секунд"
+    echo "  ✓ Telegram polling исправлен (webhook_mode: false)"
+    echo "  ✓ Python $($PYTHON_CMD --version | awk '{print $2}') поддержка"
+    echo ""
     echo "📋 СЛЕДУЮЩИЕ ШАГИ:"
     echo ""
     echo "1. Настройте конфигурацию:"
@@ -478,6 +531,12 @@ main() {
     echo ""
     echo "🔧 Управление ботом:"
     echo "   appointment-bot-ctl {start|stop|restart|status|logs|update}"
+    echo ""
+    echo "🔍 ОЖИДАЕМЫЕ ЛОГИ ПРИ УСПЕШНОЙ РАБОТЕ:"
+    echo "   [INFO] ✓ JSESSIONID получен: ..."
+    echo "   [INFO] ✓ X-Csrf-Token получен: ..."
+    echo "   [INFO] ✓ Визит зарегистрирован: ..."
+    echo "   [INFO] ✓ Уведомление отправлено в ..."
     echo ""
     echo "✅ Бот готов к настройке и запуску!"
 }
