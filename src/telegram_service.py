@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
-from .utils import retry_request
+from .utils import retry_request_async
 
 
 @dataclass
@@ -78,7 +78,7 @@ class TelegramService:
         }
         
         try:
-            response_text = await retry_request(session, "POST", url, data=payload)
+            response_text = await retry_request_async(session, "POST", url, data=payload)
             logging.info(f"Callback обработан для сообщения {message_id}")
         except Exception as e:
             logging.error(f"Ошибка при обновлении сообщения {message_id}: {e}")
@@ -110,7 +110,7 @@ class TelegramService:
             }
             
             try:
-                response_text = await retry_request(session, "POST", url, data=payload)
+                response_text = await retry_request_async(session, "POST", url, data=payload)
                 response_data = json.loads(response_text)
                 
                 if response_data.get('ok'):
@@ -179,7 +179,7 @@ class TelegramService:
         
         # Подтверждаем callback
         try:
-            await retry_request(
+            await retry_request_async(
                 session,
                 "POST",
                 f"{self.api_url}answerCallbackQuery",
@@ -200,7 +200,7 @@ class TelegramService:
             }
             
             try:
-                await retry_request(session, "POST", url, data=payload)
+                await retry_request_async(session, "POST", url, data=payload)
                 logging.info(f"Уведомление об ошибке отправлено в {chat_id}")
             except Exception as e:
                 logging.error(f"Ошибка отправки уведомления об ошибке: {e}") 
