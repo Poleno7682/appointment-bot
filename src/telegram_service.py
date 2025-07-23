@@ -128,7 +128,7 @@ class TelegramService:
     def _format_visit_message(self, visit_info: VisitInfo) -> str:
         """Форматирует сообщение о визите."""
         return (
-            f"📣 Wizyta zarejestrowana [{visit_info.channel_name}]\n"
+            f"📣 Wizyta zarejestrowana\n"
             f"✔️ Sprawa: {visit_info.service_name}\n"
             f"⏩ Długość: {visit_info.slot_length} minut\n"
             f"📅 Data: {visit_info.date}\n"
