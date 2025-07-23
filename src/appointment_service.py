@@ -1,6 +1,6 @@
 """
 Сервис регистрации визитов.
-Основная бизнес-логика для автоматической регистрации визитов в системе UM Poznan.
+Основная бизнес-логика для автоматической регистрации визитов в системе онлайн-записи.
 """
 import json
 import time
@@ -29,7 +29,7 @@ class ServiceEntry:
 
 
 class AppointmentService:
-    """Сервис для регистрации визитов в UM Poznan."""
+    """Сервис для автоматической регистрации визитов в системе онлайн-записи."""
     
     def __init__(self, config_manager: ConfigManager, telegram_service: TelegramService):
         self.config = config_manager

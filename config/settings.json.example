@@ -1,6 +1,6 @@
 {
-  "base_url": "https://rezerwacja5.um.poznan.pl/qmaticwebbooking/rest/schedule",
-  "site_url": "https://rezerwacja5.um.poznan.pl/qmaticwebbooking/",
+  "base_url": "https://your-booking-system.com/api/schedule",
+  "site_url": "https://your-booking-system.com/booking/",
   "email": "your-email@example.com",
   "repeat_minutes": 30,
   "prefixes": [

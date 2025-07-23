@@ -163,7 +163,7 @@ EOF
 ```bash
 sudo tee /etc/systemd/system/appointment-bot.service << 'EOF'
 [Unit]
-Description=Appointment Bot for UM Poznan
+Description=Appointment Bot for Online Booking Systems
 After=network.target xvfb.service
 Requires=xvfb.service
 

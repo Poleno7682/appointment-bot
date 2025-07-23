@@ -4,7 +4,7 @@
 
 ## Особенности
 
-- ✅ Автоматическая регистрация визитов в UM Poznan
+- ✅ Автоматическая регистрация визитов в системе онлайн-записи
 - ✅ Поддержка множественных Telegram каналов
 - ✅ Обработка callback'ов от Telegram Bot API
 - ✅ Генерация случайных номеров телефонов
@@ -129,8 +129,8 @@ sudo appointment-bot-ctl update
 
 ```json
 {
-  "base_url": "https://rezerwacja5.um.poznan.pl/qmaticwebbooking/rest/schedule",
-  "site_url": "https://rezerwacja5.um.poznan.pl/qmaticwebbooking/",
+  "base_url": "https://your-booking-system.com/api/schedule",
+  "site_url": "https://your-booking-system.com/booking/",
   "email": "your-email@example.com",
   "repeat_minutes": 30,
   "prefixes": ["733", "668", "883", ...],
@@ -164,7 +164,7 @@ sudo appointment-bot-ctl update
       "chat_id": "-1001234567890",
       "services": [
         {
-          "branch_name": "DĘBIEC",
+          "branch_name": "YOUR_BRANCH_NAME",
           "branch_id": "branch_hash",
           "service_name": "Service Name",
           "service_id": "service_hash",
@@ -268,5 +268,5 @@ sudo systemctl status xvfb
 
 ## Лицензия
 
-Проект создан для автоматизации регистрации визитов в UM Poznan.
+Проект создан для автоматизации регистрации визитов в системах онлайн-записи.
 Используйте ответственно и в соответствии с правилами сервиса. 

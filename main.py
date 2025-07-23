@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Appointment Bot - Автоматическая регистрация визитов в UM Poznan.
+Appointment Bot - Автоматическая регистрация визитов в системе онлайн-записи.
 Главный файл приложения.
 """
 import asyncio
