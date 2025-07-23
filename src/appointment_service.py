@@ -12,7 +12,10 @@ from dataclasses import dataclass
 
 from .config_manager import ConfigManager
 from .telegram_service import TelegramService, VisitInfo
-from .utils import generate_phone, find_next_dates, get_chrome_session, setup_csrf_token
+from .utils import (
+    generate_phone, find_next_dates, get_chrome_session, setup_csrf_token,
+    get_server_current_date, find_dates_from_date
+)
 
 
 @dataclass
@@ -254,6 +257,9 @@ class AppointmentService:
         for date in available_dates:
             times = self._get_available_times(self._session, service_entry, date, slot_length)
             if not times:
+                # Если нет доступных времен, все равно обновляем дату
+                logging.info(f"[{service_entry.service_name}] Нет времен на {date}, обновляем последнюю дату")
+                self.config.update_service_last_date(channel_id, service_entry.service_id, date)
                 continue
             
             successful_registrations = 0
@@ -299,15 +305,25 @@ class AppointmentService:
                         )
                         
                         await self.telegram.send_visit_notification(visit_info, chat_id)
+                    
+                    # ✅ СРАЗУ ПРОВЕРЯЕМ: достигнут ли лимит на день?
+                    if successful_registrations >= service_entry.visits_per_day:
+                        logging.info(f"🎯 Лимит {service_entry.visits_per_day} визитов достигнут на {date}")
+                        self.config.update_service_last_date(channel_id, service_entry.service_id, date)
+                        break  # Переходим к следующей дате
                 else:
                     logging.warning(f"Ошибка подтверждения записи для {time_slot}")
                 
                 # Задержка между попытками
                 time.sleep(random.uniform(5, 10))
             
-            # Если есть успешные регистрации, обновляем последнюю дату
-            if successful_registrations > 0:
+            # ✅ ЕСЛИ ЛИМИТ НЕ ДОСТИГНУТ, но время закончилось - тоже обновляем дату
+            if successful_registrations < service_entry.visits_per_day and not times_copy:
+                logging.info(f"⚠️ На {date} зарегистрировано только {successful_registrations}/{service_entry.visits_per_day} визитов (нет больше времен)")
                 self.config.update_service_last_date(channel_id, service_entry.service_id, date)
+            
+            # ✅ ЕСЛИ БЫЛИ РЕГИСТРАЦИИ, возвращаем True
+            if successful_registrations > 0:
                 return True
         
         return False
@@ -342,6 +358,202 @@ class AppointmentService:
                     
                     if self.config.telegram_enabled:
                         await self.telegram.send_error_notification(error_msg, chat_id)
+        
+        # Обновляем сессию для следующего цикла
+        self._session = None
+    
+    # 🔄 RESET-ЦИКЛ МЕТОДЫ
+    
+    async def register_visit_from_date(self, service_entry: ServiceEntry, 
+                                      channel_id: str, channel_name: str, 
+                                      chat_id: str, start_date: str,
+                                      max_future_days: int = 30) -> bool:
+        """
+        Регистрирует визиты начиная с указанной даты (для reset-цикла).
+        НЕ обновляет last_registered_date в конфигурации!
+        
+        Args:
+            service_entry: Данные услуги
+            channel_id: ID канала
+            channel_name: Название канала
+            chat_id: ID чата для уведомлений
+            start_date: Дата начала поиска (YYYY-MM-DD)
+            max_future_days: Максимум дней вперед для поиска
+            
+        Returns:
+            True если найдены и зарегистрированы визиты
+        """
+        if not self._session:
+            self._session = self._create_session()
+        
+        logging.info(f"🔄 [RESET] Начало reset-цикла для {service_entry.service_name} с {start_date}")
+        
+        # Получаем детали услуги
+        service_details = self._get_service_details(self._session, service_entry)
+        if not service_details:
+            return False
+        
+        # Вычисляем длительность слота
+        duration = int(service_details.get("duration", 20))
+        additional = int(service_details.get("additionalDuration", 10))
+        slot_length = duration + additional * (service_entry.adult - 1)
+        
+        # Получаем доступные даты начиная с start_date
+        available_dates = self._get_available_dates_from_date(
+            self._session, service_entry, slot_length, start_date, max_future_days
+        )
+        
+        if not available_dates:
+            logging.info(f"🔄 [RESET] Нет доступных дат для {service_entry.service_name} с {start_date}")
+            return False
+        
+        logging.info(f"🔄 [RESET] Найдено {len(available_dates)} дат для проверки")
+        total_registered = 0
+        
+        # Пробуем зарегистрироваться на найденные даты
+        for date in available_dates:
+            times = self._get_available_times(self._session, service_entry, date, slot_length)
+            if not times:
+                continue
+            
+            successful_registrations = 0
+            times_copy = times[:]
+            
+            while successful_registrations < service_entry.visits_per_day and times_copy:
+                time_data = random.choice(times_copy)
+                times_copy.remove(time_data)
+                time_slot = time_data["time"]
+                
+                # Резервируем время
+                appointment_id = self._reserve_appointment(
+                    self._session, service_entry, date, time_slot, slot_length
+                )
+                
+                if not appointment_id:
+                    continue
+                
+                # Генерируем номер телефона
+                phone = generate_phone(self.config.prefixes)
+                
+                # Создаем клиента
+                try:
+                    self._create_customer(self._session, phone)
+                except Exception as e:
+                    logging.error(f"Ошибка создания клиента: {e}")
+                    continue
+                
+                # Подтверждаем запись
+                if self._confirm_appointment(self._session, appointment_id, service_entry, phone, slot_length):
+                    successful_registrations += 1
+                    total_registered += 1
+                    logging.info(f"✓ [RESET] Визит зарегистрирован: {date} {time_slot} | {phone}")
+                    
+                    # 🔑 ОТПРАВЛЯЕМ ОБЫЧНЫЕ TELEGRAM УВЕДОМЛЕНИЯ (без изменений)
+                    if self.config.telegram_enabled:
+                        visit_info = VisitInfo(
+                            service_name=service_entry.service_name,
+                            slot_length=slot_length,
+                            date=date,
+                            time=time_slot,
+                            phone=phone,
+                            channel_name=channel_name
+                        )
+                        
+                        await self.telegram.send_visit_notification(visit_info, chat_id)
+                    
+                    # Проверяем лимит на день
+                    if successful_registrations >= service_entry.visits_per_day:
+                        logging.info(f"🔄 [RESET] Лимит {service_entry.visits_per_day} визитов достигнут на {date}")
+                        break
+                else:
+                    logging.warning(f"Ошибка подтверждения записи для {time_slot}")
+                
+                # Задержка между попытками
+                time.sleep(random.uniform(5, 10))
+        
+        if total_registered > 0:
+            logging.info(f"🔄 [RESET] Завершен reset-цикл: зарегистрировано {total_registered} визитов для {service_entry.service_name}")
+            return True
+        else:
+            logging.info(f"🔄 [RESET] Reset-цикл завершен без регистраций для {service_entry.service_name}")
+            return False
+    
+    def _get_available_dates_from_date(self, session: requests.Session, 
+                                      service_entry: ServiceEntry, slot_length: int,
+                                      start_date: str, max_future_days: int = 30) -> List[str]:
+        """
+        Получает доступные даты начиная с указанной даты (для reset-цикла).
+        Игнорирует last_registered_date.
+        """
+        try:
+            url = (f"{self.config.base_url}/branches/{service_entry.branch_id}/dates;"
+                  f"servicePublicId={service_entry.service_id};"
+                  f"customSlotLength={slot_length}")
+            
+            dates = session.get(url, timeout=30).json()
+            
+            # 🔑 ИСПОЛЬЗУЕМ СПЕЦИАЛЬНУЮ ФУНКЦИЮ ДЛЯ RESET-ЦИКЛА
+            filtered_dates = find_dates_from_date(dates, start_date, max_future_days)
+            
+            logging.debug(f"🔄 [RESET] API вернул {len(dates)} дат, отфильтровано {len(filtered_dates)} с {start_date}")
+            return filtered_dates
+            
+        except Exception as e:
+            logging.error(f"Ошибка получения дат для reset-цикла {service_entry.service_name}: {e}")
+            return []
+    
+    async def run_reset_cycle_for_all_services(self) -> None:
+        """Запускает reset-цикл для всех услуг во всех каналах."""
+        if not self.config.reset_cycle_enabled:
+            logging.debug("🔄 Reset-цикл отключен в настройках")
+            return
+        
+        start_date = get_server_current_date()
+        max_future_days = self.config.reset_cycle_max_future_days
+        
+        logging.info(f"🔄 Запуск RESET-ЦИКЛА: поиск с {start_date}, максимум {max_future_days} дней вперед")
+        
+        total_services = 0
+        successful_services = 0
+        
+        for channel in self.config.channels:
+            channel_id = channel['id']
+            channel_name = channel['name']
+            chat_id = channel['chat_id']
+            
+            logging.info(f"🔄 [RESET] Обработка канала: {channel_name}")
+            
+            for service_data in channel.get('services', []):
+                total_services += 1
+                try:
+                    service_entry = ServiceEntry(
+                        branch_name=service_data['branch_name'],
+                        branch_id=service_data['branch_id'],
+                        service_name=service_data['service_name'],
+                        service_id=service_data['service_id'],
+                        qp_id=service_data['qpId'],
+                        adult=service_data['adult'],
+                        visits_per_day=service_data['visits_per_day'],
+                        last_registered_date=None  # 🔑 ИГНОРИРУЕМ last_registered_date!
+                    )
+                    
+                    # 🔑 НЕ ОБНОВЛЯЕМ last_registered_date в конфиге!
+                    success = await self.register_visit_from_date(
+                        service_entry, channel_id, channel_name, chat_id,
+                        start_date, max_future_days
+                    )
+                    
+                    if success:
+                        successful_services += 1
+                    
+                except Exception as e:
+                    error_msg = f"Ошибка reset-цикла для услуги {service_data.get('service_name', 'Unknown')}: {e}"
+                    logging.error(error_msg)
+                    
+                    if self.config.telegram_enabled:
+                        await self.telegram.send_error_notification(error_msg, chat_id)
+        
+        logging.info(f"🔄 RESET-ЦИКЛ завершен: {successful_services}/{total_services} услуг с новыми визитами")
         
         # Обновляем сессию для следующего цикла
         self._session = None

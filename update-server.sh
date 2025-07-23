@@ -1,9 +1,11 @@
 #!/bin/bash
 
-# 🚀 Полное обновление Appointment Bot на сервере
-# Использование: wget https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/update-server.sh && chmod +x update-server.sh && sudo ./update-server.sh
+# Скрипт для полного обновления проекта на сервере
+# Включает новую логику немедленного обновления last_registered_date
 
 set -e
+
+echo "🚀 Запуск полного обновления appointment-bot..."
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -12,208 +14,154 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-log() {
-    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
+print_status() {
+    echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-warn() {
-    echo -e "${YELLOW}[WARNING] $1${NC}"
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-error() {
-    echo -e "${RED}[ERROR] $1${NC}"
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Проверка что запущено от root
+if [ "$EUID" -ne 0 ]; then
+    print_error "Запустите скрипт от имени root: sudo ./update-server.sh"
     exit 1
-}
-
-info() {
-    echo -e "${BLUE}[INFO] $1${NC}"
-}
-
-check_root() {
-    if [ "$EUID" -ne 0 ]; then
-        error "Этот скрипт должен запускаться от root. Используйте sudo."
-    fi
-}
-
-echo "🚀 Appointment Bot - Полное обновление сервера"
-echo "=============================================="
-echo ""
-
-check_root
-
-# Проверяем существование проекта
-PROJECT_DIR="/home/appointment-bot/appointment-bot"
-if [ ! -d "$PROJECT_DIR" ]; then
-    error "Проект не найден в $PROJECT_DIR. Сначала выполните установку."
 fi
 
-log "Останавливаем бота..."
-systemctl stop appointment-bot || warn "Бот уже остановлен"
+# Остановка сервиса
+print_status "Остановка appointment-bot сервиса..."
+if systemctl is-active --quiet appointment-bot; then
+    systemctl stop appointment-bot
+    print_success "Сервис остановлен"
+else
+    print_warning "Сервис уже остановлен"
+fi
 
-log "Создаем резервную копию текущих конфигураций..."
-BACKUP_DIR="/tmp/appointment-bot-backup-$(date +%Y%m%d_%H%M%S)"
+# Переход в рабочую директорию
+BOT_DIR="/home/appointment-bot/appointment-bot"
+if [ -d "$BOT_DIR" ]; then
+    cd "$BOT_DIR"
+    print_success "Переход в директорию: $BOT_DIR"
+else
+    print_error "Директория $BOT_DIR не найдена!"
+    exit 1
+fi
+
+# Создание резервной копии конфигураций
+print_status "Создание резервной копии конфигураций..."
+BACKUP_DIR="/home/appointment-bot/config-backup-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 
-# Сохраняем пользовательские конфигурации
-if [ -f "$PROJECT_DIR/config/settings.json" ]; then
-    cp "$PROJECT_DIR/config/settings.json" "$BACKUP_DIR/"
-    log "✓ Сохранен settings.json"
+if [ -f "config/channels.json" ]; then
+    cp "config/channels.json" "$BACKUP_DIR/"
+    print_success "Сохранен channels.json"
 fi
 
-if [ -f "$PROJECT_DIR/config/channels.json" ]; then
-    cp "$PROJECT_DIR/config/channels.json" "$BACKUP_DIR/"
-    log "✓ Сохранен channels.json"
+if [ -f "config/settings.json" ]; then
+    cp "config/settings.json" "$BACKUP_DIR/"
+    print_success "Сохранен settings.json"
 fi
 
-log "Обновление основных файлов проекта..."
-cd "$PROJECT_DIR"
+# Обновление кода
+print_status "Обновление исходного кода..."
 
-# Список файлов для обновления
-declare -a FILES=(
-    "main.py"
-    "requirements.txt"
-    "src/appointment_service.py"
-    "src/utils.py"
-    "src/telegram_service.py"
-    "src/config_manager.py"
-    "config/settings.json.example"
-    "config/channels.json.example"
-    "config/README.md"
-    "README.md"
-    "INSTALL.md"
-    "CONTRIBUTING.md"
-    "LICENSE"
-    ".gitignore"
-)
-
-# Скачиваем обновленные файлы
-for file in "${FILES[@]}"; do
-    FILE_DIR=$(dirname "$file")
-    if [ "$FILE_DIR" != "." ]; then
-        sudo -u appointment-bot mkdir -p "$FILE_DIR"
-    fi
-    
-    log "Обновление $file..."
-    sudo -u appointment-bot wget -q -O "${file}.new" "https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/$file"
-    
-    if [ -f "${file}.new" ] && [ -s "${file}.new" ]; then
-        sudo -u appointment-bot mv "${file}.new" "$file"
-        log "✓ Обновлен: $file"
-    else
-        warn "✗ Ошибка обновления: $file"
-        rm -f "${file}.new"
-    fi
-done
-
-log "Обновление скрипта управления appointment-bot-ctl..."
-wget -q -O /tmp/install.sh "https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/install.sh"
-
-if [ -f /tmp/install.sh ] && [ -s /tmp/install.sh ]; then
-    # Извлекаем новый скрипт управления из install.sh
-    sed -n '/^cat > \/usr\/local\/bin\/appointment-bot-ctl << '\''EOF'\''$/,/^EOF$/p' /tmp/install.sh | \
-    sed '1d;$d' > /tmp/appointment-bot-ctl.new
-    
-    if [ -s /tmp/appointment-bot-ctl.new ]; then
-        mv /tmp/appointment-bot-ctl.new /usr/local/bin/appointment-bot-ctl
-        chmod +x /usr/local/bin/appointment-bot-ctl
-        log "✓ Обновлен appointment-bot-ctl"
-    else
-        warn "✗ Ошибка извлечения appointment-bot-ctl"
-    fi
+# Проверяем наличие git
+if command -v git &> /dev/null && [ -d ".git" ]; then
+    print_status "Обновление через Git..."
+    git stash push -m "Backup before update $(date)" || true
+    git pull origin master
+    print_success "Код обновлен через Git"
 else
-    warn "✗ Ошибка скачивания install.sh"
+    print_status "Git не найден, загрузка файлов напрямую..."
+    
+    # Список файлов для обновления (включая новую логику)
+    FILES=(
+        "src/appointment_service.py"
+        "src/config_manager.py"
+        "src/telegram_service.py"
+        "src/utils.py"
+        "main.py"
+        "requirements.txt"
+        "install.sh"
+        "update-server.sh"
+    )
+    
+    for file in "${FILES[@]}"; do
+        if curl -f -s -o "$file.tmp" "https://raw.githubusercontent.com/username/appointment-bot/master/$file"; then
+            mv "$file.tmp" "$file"
+            print_success "Обновлен: $file"
+        else
+            print_warning "Не удалось обновить: $file"
+            rm -f "$file.tmp"
+        fi
+    done
 fi
 
-rm -f /tmp/install.sh
-
-log "Восстановление пользовательских конфигураций..."
-# Восстанавливаем пользовательские настройки
-if [ -f "$BACKUP_DIR/settings.json" ]; then
-    sudo -u appointment-bot cp "$BACKUP_DIR/settings.json" "$PROJECT_DIR/config/"
-    log "✓ Восстановлен settings.json"
-else
-    # Создаем из шаблона если нет пользовательского
-    if [ -f "$PROJECT_DIR/config/settings.json.example" ]; then
-        sudo -u appointment-bot cp "$PROJECT_DIR/config/settings.json.example" "$PROJECT_DIR/config/settings.json"
-        log "✓ Создан settings.json из шаблона"
-    fi
-fi
-
+# Восстановление конфигураций
+print_status "Восстановление конфигураций пользователя..."
 if [ -f "$BACKUP_DIR/channels.json" ]; then
-    sudo -u appointment-bot cp "$BACKUP_DIR/channels.json" "$PROJECT_DIR/config/"
-    log "✓ Восстановлен channels.json"
-else
-    # Создаем из шаблона если нет пользовательского
-    if [ -f "$PROJECT_DIR/config/channels.json.example" ]; then
-        sudo -u appointment-bot cp "$PROJECT_DIR/config/channels.json.example" "$PROJECT_DIR/config/channels.json"
-        log "✓ Создан channels.json из шаблона"
-    fi
+    cp "$BACKUP_DIR/channels.json" "config/"
+    print_success "Восстановлен channels.json"
 fi
 
-log "Обновление Python зависимостей..."
-sudo -u appointment-bot ./venv/bin/pip install --upgrade pip
-sudo -u appointment-bot ./venv/bin/pip install -r requirements.txt
+if [ -f "$BACKUP_DIR/settings.json" ]; then
+    cp "$BACKUP_DIR/settings.json" "config/"
+    print_success "Восстановлен settings.json"
+fi
 
-log "Проверка установленных пакетов..."
-sudo -u appointment-bot ./venv/bin/pip list | grep -E "(aiohttp|requests|selenium)" || true
+# Обновление зависимостей
+print_status "Обновление Python зависимостей..."
+if [ -f "/home/appointment-bot/venv/bin/activate" ]; then
+    source /home/appointment-bot/venv/bin/activate
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    print_success "Зависимости обновлены"
+else
+    print_error "Виртуальное окружение не найдено!"
+    exit 1
+fi
 
-log "Проверка файлов проекта..."
-REQUIRED_FILES=(
-    "$PROJECT_DIR/main.py"
-    "$PROJECT_DIR/src/utils.py"
-    "$PROJECT_DIR/src/telegram_service.py"
-    "$PROJECT_DIR/src/appointment_service.py"
-    "$PROJECT_DIR/src/config_manager.py"
-    "$PROJECT_DIR/requirements.txt"
-    "$PROJECT_DIR/config/settings.json"
-    "$PROJECT_DIR/config/channels.json"
-)
+# Установка прав доступа
+print_status "Установка прав доступа..."
+chown -R appointment-bot:appointment-bot /home/appointment-bot/
+chmod +x /home/appointment-bot/appointment-bot/main.py
+chmod +x /usr/local/bin/appointment-bot-ctl
+print_success "Права доступа установлены"
 
-for file in "${REQUIRED_FILES[@]}"; do
-    if [ -f "$file" ]; then
-        log "✓ $file"
-    else
-        error "✗ Отсутствует критически важный файл: $file"
-    fi
-done
-
-log "Обновление прав доступа..."
-chown -R appointment-bot:appointment-bot "$PROJECT_DIR"
-chmod +x "$PROJECT_DIR/main.py"
-
-log "Перезагрузка systemd и запуск бота..."
+# Перезапуск сервиса
+print_status "Запуск обновленного сервиса..."
 systemctl daemon-reload
 systemctl start appointment-bot
+systemctl enable appointment-bot
 
-# Ждем 3 секунды и проверяем статус
+# Проверка статуса
 sleep 3
 if systemctl is-active --quiet appointment-bot; then
-    log "✅ Бот успешно запущен!"
+    print_success "✅ Сервис успешно запущен с новой логикой!"
 else
-    warn "⚠️ Бот не запустился, проверьте конфигурацию"
-    info "Используйте: sudo appointment-bot-ctl logs"
+    print_error "❌ Ошибка запуска сервиса"
+    systemctl status appointment-bot
+    exit 1
 fi
 
-echo ""
-echo "🎉 ПОЛНОЕ ОБНОВЛЕНИЕ ЗАВЕРШЕНО!"
-echo "==============================="
-echo ""
-echo "📋 ОБНОВЛЕННЫЕ КОМПОНЕНТЫ:"
-echo "  ✅ Все исходные файлы проекта"
-echo "  ✅ Скрипт управления appointment-bot-ctl"
-echo "  ✅ Python зависимости"
-echo "  ✅ Шаблоны конфигураций"
-echo "  ✅ Документация"
-echo ""
-echo "💾 РЕЗЕРВНАЯ КОПИЯ: $BACKUP_DIR"
-echo ""
-echo "🔧 УПРАВЛЕНИЕ БОТОМ:"
-echo "  sudo appointment-bot-ctl status   # Статус"
-echo "  sudo appointment-bot-ctl logs     # Логи"
-echo "  sudo appointment-bot-ctl restart  # Перезапуск"
-echo ""
-echo "⚙️ НАСТРОЙКА:"
-echo "  sudo nano $PROJECT_DIR/config/channels.json"
-echo "  sudo nano $PROJECT_DIR/config/settings.json"
-echo ""
-echo "✅ Проект полностью обновлен и готов к работе!" 
+print_success "🎉 Обновление завершено успешно!"
+print_status "📊 Новые возможности:"
+echo "  ✅ Немедленное обновление last_registered_date при достижении лимита"
+echo "  ✅ Обновление даты даже при отсутствии доступных времен"
+echo "  ✅ Улучшенное логирование процесса регистрации"
+echo "  ✅ Предотвращение повторной обработки тех же дат"
+
+print_status "📋 Команды для мониторинга:"
+echo "  sudo appointment-bot-ctl status   # Статус сервиса"
+echo "  sudo appointment-bot-ctl logs     # Логи в реальном времени"
+echo "  sudo journalctl -u appointment-bot --since '1 hour ago' | grep 'last_registered_date'"
+
+print_status "📁 Резервная копия конфигураций сохранена в: $BACKUP_DIR" 

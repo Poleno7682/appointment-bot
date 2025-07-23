@@ -108,6 +108,26 @@ class ConfigManager:
         return self._settings.get('retry_settings', {})
     
     @property
+    def reset_cycle_enabled(self) -> bool:
+        """Включен ли reset-цикл."""
+        return self._settings.get('reset_cycle', {}).get('enabled', False)
+    
+    @property
+    def reset_cycle_interval_hours(self) -> int:
+        """Интервал reset-цикла в часах."""
+        return self._settings.get('reset_cycle', {}).get('interval_hours', 168)
+    
+    @property
+    def reset_cycle_max_future_days(self) -> int:
+        """Максимум дней вперед для поиска в reset-цикле."""
+        return self._settings.get('reset_cycle', {}).get('max_future_days', 30)
+    
+    @property
+    def reset_cycle_marker_file(self) -> str:
+        """Путь к файлу-маркеру reset-цикла."""
+        return self._settings.get('reset_cycle', {}).get('marker_file', '/var/lib/appointment-bot/last-reset')
+
+    @property
     def telegram_bot_token(self) -> str:
         """Токен Telegram бота."""
         return self._channels.get('telegram', {}).get('bot_token', '')

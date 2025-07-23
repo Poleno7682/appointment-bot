@@ -12,6 +12,12 @@
     "initial_delay": 1,
     "delay_multiplier": 2
   },
+  "reset_cycle": {
+    "enabled": true,
+    "interval_hours": 168,
+    "max_future_days": 30,
+    "marker_file": "/var/lib/appointment-bot/last-reset"
+  },
   "logging": {
     "level": "INFO",
     "file": "appointment_bot.log",

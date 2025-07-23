@@ -293,3 +293,135 @@ def setup_csrf_token(session, base_url: str) -> str:
             time.sleep(2)
     
     raise Exception("Не удалось получить CSRF токен") 
+
+
+# 🔄 RESET-ЦИКЛ УТИЛИТЫ
+
+def should_run_reset_cycle(marker_file: str, interval_hours: int) -> bool:
+    """
+    Определяет нужно ли запускать reset-цикл на основе файла-маркера.
+    
+    Args:
+        marker_file: Путь к файлу-маркеру
+        interval_hours: Интервал в часах между reset-циклами
+        
+    Returns:
+        True если пора запускать reset-цикл
+    """
+    import os
+    import time
+    
+    interval_seconds = interval_hours * 3600
+    
+    try:
+        if not os.path.exists(marker_file):
+            # Первый запуск - создаем файл и запускаем reset-цикл
+            create_reset_marker(marker_file)
+            logging.info(f"🔄 Создан файл-маркер reset-цикла: {marker_file}")
+            return True
+        
+        # Проверяем время последней модификации
+        last_reset = os.path.getmtime(marker_file)
+        current_time = time.time()
+        elapsed_hours = (current_time - last_reset) / 3600
+        
+        if (current_time - last_reset) >= interval_seconds:
+            # Время пришло - обновляем файл
+            update_reset_marker(marker_file)
+            logging.info(f"🔄 Reset-цикл triggered после {elapsed_hours:.1f} часов")
+            return True
+        
+        next_reset_hours = interval_hours - elapsed_hours
+        logging.debug(f"🔄 Reset-цикл через {next_reset_hours:.1f} часов")
+        return False
+        
+    except Exception as e:
+        logging.error(f"Ошибка проверки reset-цикла: {e}")
+        return False
+
+
+def create_reset_marker(marker_file: str) -> None:
+    """Создает файл-маркер reset-цикла."""
+    import os
+    
+    try:
+        # Создаем директорию если не существует
+        os.makedirs(os.path.dirname(marker_file), exist_ok=True)
+        
+        # Создаем файл
+        with open(marker_file, 'w') as f:
+            f.write(f"Reset cycle marker created at {time.time()}\n")
+            
+        logging.info(f"✓ Создан файл-маркер: {marker_file}")
+        
+    except Exception as e:
+        logging.error(f"Ошибка создания файла-маркера {marker_file}: {e}")
+
+
+def update_reset_marker(marker_file: str) -> None:
+    """Обновляет время файла-маркера reset-цикла."""
+    import os
+    
+    try:
+        # Обновляем время модификации файла
+        if os.path.exists(marker_file):
+            os.utime(marker_file, None)  # Устанавливает текущее время
+        else:
+            create_reset_marker(marker_file)
+            
+        logging.info(f"✓ Обновлен файл-маркер: {marker_file}")
+        
+    except Exception as e:
+        logging.error(f"Ошибка обновления файла-маркера {marker_file}: {e}")
+
+
+def get_server_current_date() -> str:
+    """
+    Получает текущую дату сервера в формате YYYY-MM-DD.
+    
+    Returns:
+        Текущая дата в формате YYYY-MM-DD
+    """
+    from datetime import datetime
+    
+    try:
+        # Используем локальное время сервера
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        logging.debug(f"🗓️ Текущая дата сервера: {current_date}")
+        return current_date
+        
+    except Exception as e:
+        logging.error(f"Ошибка получения даты сервера: {e}")
+        return datetime.now().strftime('%Y-%m-%d')
+
+
+def find_dates_from_date(dates: List[dict], start_date: str, max_future_days: int = 30) -> List[str]:
+    """
+    Находит доступные даты начиная с указанной даты (для reset-цикла).
+    
+    Args:
+        dates: Список дат от API
+        start_date: Дата начала поиска
+        max_future_days: Максимум дней вперед
+        
+    Returns:
+        Список доступных дат
+    """
+    from datetime import datetime, timedelta
+    
+    try:
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        max_date = start_dt + timedelta(days=max_future_days)
+        max_date_str = max_date.strftime('%Y-%m-%d')
+        
+        filtered_dates = [
+            d["date"] for d in dates 
+            if start_date <= d["date"] <= max_date_str
+        ]
+        
+        logging.debug(f"🔍 Reset-цикл: найдено {len(filtered_dates)} дат с {start_date} по {max_date_str}")
+        return filtered_dates
+        
+    except Exception as e:
+        logging.error(f"Ошибка фильтрации дат для reset-цикла: {e}")
+        return [] 

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Appointment Bot - Автоматическая регистрация визитов в системе онлайн-записи.
-Главный файл приложения.
+Главный модуль appointment-bot.
+Автоматическая регистрация визитов в системе онлайн-записи с отправкой уведомлений в Telegram.
 """
+
 import asyncio
 import logging
+import os
 import signal
 import sys
 from typing import Optional
@@ -12,6 +14,7 @@ from typing import Optional
 from src.config_manager import ConfigManager
 from src.telegram_service import TelegramService
 from src.appointment_service import AppointmentService
+from src.utils import should_run_reset_cycle
 
 
 class AppointmentBot:
@@ -55,7 +58,18 @@ class AppointmentBot:
         
         while self.running:
             try:
+                # 🔄 ОСНОВНАЯ ЛОГИКА (не изменяется)
                 await self.appointment_service.process_all_services()
+                
+                # 🆕 ПРОВЕРКА И ЗАПУСК RESET-ЦИКЛА
+                if self.config.reset_cycle_enabled:
+                    if should_run_reset_cycle(
+                        self.config.reset_cycle_marker_file,
+                        self.config.reset_cycle_interval_hours
+                    ):
+                        logging.info("🔄 Время для reset-цикла наступило!")
+                        await self.appointment_service.run_reset_cycle_for_all_services()
+                
                 logging.info(f"Следующая проверка через {self.config.repeat_minutes} минут...")
                 
                 # Ждем с проверкой флага running каждую секунду
