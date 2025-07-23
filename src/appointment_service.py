@@ -81,7 +81,15 @@ class AppointmentService:
                   f"customSlotLength={slot_length}")
             
             dates = session.get(url, timeout=30).json()
-            return find_next_dates(dates, service_entry.last_registered_date)
+            filtered_dates = find_next_dates(dates, service_entry.last_registered_date)
+            
+            # 🔍 ДЕТАЛЬНЫЙ DEBUG для отслеживания
+            logging.debug(f"🔍 [{service_entry.service_name}] adult={service_entry.adult}, last_date={service_entry.last_registered_date}")
+            logging.debug(f"🔍 API вернул {len(dates)} дат, отфильтровано {len(filtered_dates)} после {service_entry.last_registered_date}")
+            if filtered_dates:
+                logging.debug(f"🔍 Найденные даты: {filtered_dates[:5]}...")  # Показываем первые 5
+            
+            return filtered_dates
             
         except Exception as e:
             logging.error(f"Ошибка получения дат для {service_entry.service_name}: {e}")
@@ -235,6 +243,9 @@ class AppointmentService:
         Returns:
             True если регистрация успешна
         """
+        # 🔍 ДЕТАЛЬНАЯ ИНФОРМАЦИЯ о сервисе
+        logging.info(f"🔍 Обработка сервиса: {service_entry.service_name} (adult={service_entry.adult}, last_date={service_entry.last_registered_date})")
+        
         if not self._session:
             self._session = self._create_session()
         
