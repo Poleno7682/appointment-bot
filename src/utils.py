@@ -282,7 +282,7 @@ def setup_csrf_token(session, base_url: str) -> str:
     """
     for attempt in range(3):
         try:
-            config = session.get(f"{base_url}/configuration", timeout=10).json()
+            config = session.get(f"{base_url}/configuration", timeout=30).json()
             csrf_token = config.get('token')
             if csrf_token:
                 session.headers["X-Csrf-Token"] = csrf_token

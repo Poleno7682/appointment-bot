@@ -52,7 +52,7 @@ class AppointmentService:
         """Получает детали услуги от API."""
         try:
             url = f"{self.config.base_url}/branches/{service_entry.branch_id}/services;validate=true"
-            full_services = session.get(url, timeout=10).json()
+            full_services = session.get(url, timeout=30).json()
             
             service = next(
                 (s for s in full_services if s["publicId"] == service_entry.service_id), 
@@ -77,7 +77,7 @@ class AppointmentService:
                   f"servicePublicId={service_entry.service_id};"
                   f"customSlotLength={slot_length}")
             
-            dates = session.get(url, timeout=10).json()
+            dates = session.get(url, timeout=30).json()
             return find_next_dates(dates, service_entry.last_registered_date)
             
         except Exception as e:
@@ -93,7 +93,7 @@ class AppointmentService:
                   f"servicePublicId={service_entry.service_id};"
                   f"customSlotLength={slot_length}")
             
-            return session.get(url, timeout=10).json()
+            return session.get(url, timeout=30).json()
             
         except Exception as e:
             logging.error(f"Ошибка получения времен для {date}: {e}")
@@ -120,7 +120,7 @@ class AppointmentService:
                 "custom": json.dumps({"peopleServices": people_services})
             }
             
-            response = session.post(url, json=payload, timeout=10)
+            response = session.post(url, json=payload, timeout=30)
             reserve_data = response.json()
             
             appointment_id = (reserve_data.get("publicId") or 
@@ -157,7 +157,7 @@ class AppointmentService:
             }
             
             url = f"{self.config.base_url}/matchCustomer"
-            session.post(url, json=customer, timeout=10)
+            session.post(url, json=customer, timeout=30)
             
         except Exception as e:
             logging.error(f"Ошибка создания клиента: {e}")
@@ -208,7 +208,7 @@ class AppointmentService:
             }
             
             url = f"{self.config.base_url}/appointments/{appointment_id}/confirm"
-            response = session.post(url, json=confirm_payload, timeout=10)
+            response = session.post(url, json=confirm_payload, timeout=30)
             
             return response.status_code == 200
             
