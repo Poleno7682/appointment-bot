@@ -131,11 +131,21 @@ class ConfigManager:
     
     def update_service_last_date(self, channel_id: str, service_id: str, last_date: str) -> None:
         """Обновляет последнюю дату регистрации для услуги."""
+        logging.info(f"Обновление last_registered_date: канал={channel_id}, сервис={service_id}, дата={last_date}")
+        
         for channel in self.channels:
             if channel.get('id') == channel_id:
                 for service in channel.get('services', []):
                     if service.get('service_id') == service_id:
+                        old_date = service.get('last_registered_date', 'не установлена')
                         service['last_registered_date'] = last_date
-                        self.save_channels_config()
+                        logging.info(f"✓ Дата обновлена: {old_date} → {last_date}")
+                        
+                        try:
+                            self.save_channels_config()
+                            logging.info(f"✓ Конфигурация сохранена в файл channels.json")
+                        except Exception as e:
+                            logging.error(f"✗ Ошибка сохранения конфигурации: {e}")
+                            raise
                         return
-        logging.warning(f"Услуга {service_id} в канале {channel_id} не найдена") 
+        logging.warning(f"✗ Услуга {service_id} в канале {channel_id} не найдена") 
