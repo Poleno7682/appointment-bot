@@ -119,6 +119,9 @@ sudo appointment-bot-ctl disable
 
 # Обновление проекта с GitHub
 sudo appointment-bot-ctl update
+
+# 🚀 ПОЛНОЕ обновление сервера (все компоненты)
+wget https://raw.githubusercontent.com/Poleno7682/appointment-bot/main/update-server.sh && chmod +x update-server.sh && sudo ./update-server.sh
 ```
 
 ## Конфигурация
