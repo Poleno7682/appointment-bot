@@ -73,8 +73,20 @@ class ConfigManager:
         try:
             with open(channels_path, 'w', encoding='utf-8') as f:
                 json.dump(self._channels, f, indent=2, ensure_ascii=False)
+            logging.debug("🔄 Конфигурация каналов сохранена и кэш обновлен")
         except Exception as e:
             logging.error(f"Ошибка сохранения конфигурации каналов: {e}")
+            raise
+
+    def reload_channels_config(self) -> None:
+        """Принудительно перезагружает конфигурацию каналов из файла."""
+        try:
+            old_channels_count = len(self._channels.get('channels', []))
+            self._channels = self._load_channels()
+            new_channels_count = len(self._channels.get('channels', []))
+            logging.info(f"🔄 Конфигурация каналов перезагружена из файла: {old_channels_count} → {new_channels_count} каналов")
+        except Exception as e:
+            logging.error(f"Ошибка перезагрузки конфигурации каналов: {e}")
             raise
     
     @property
@@ -159,11 +171,12 @@ class ConfigManager:
                     if service.get('service_id') == service_id:
                         old_date = service.get('last_registered_date', 'не установлена')
                         service['last_registered_date'] = last_date
-                        logging.info(f"✓ Дата обновлена: {old_date} → {last_date}")
+                        logging.info(f"✓ Дата обновлена в кэше: {old_date} → {last_date}")
                         
                         try:
                             self.save_channels_config()
                             logging.info(f"✓ Конфигурация сохранена в файл channels.json")
+                            logging.debug(f"🔄 Кэш синхронизирован с файлом для сервиса {service_id}")
                         except Exception as e:
                             logging.error(f"✗ Ошибка сохранения конфигурации: {e}")
                             raise

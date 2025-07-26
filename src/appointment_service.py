@@ -83,11 +83,9 @@ class AppointmentService:
             dates = session.get(url, timeout=30).json()
             filtered_dates = find_next_dates(dates, service_entry.last_registered_date)
             
-            # 🔍 ДЕТАЛЬНЫЙ DEBUG для отслеживания
-            logging.debug(f"🔍 [{service_entry.service_name}] adult={service_entry.adult}, last_date={service_entry.last_registered_date}")
-            logging.debug(f"🔍 API вернул {len(dates)} дат, отфильтровано {len(filtered_dates)} после {service_entry.last_registered_date}")
+            # Базовая информация о результатах поиска дат
             if filtered_dates:
-                logging.debug(f"🔍 Найденные даты: {filtered_dates[:5]}...")  # Показываем первые 5
+                logging.info(f"[{service_entry.service_name}] Найдено {len(filtered_dates)} доступных дат")
             
             return filtered_dates
             
@@ -141,8 +139,6 @@ class AppointmentService:
                 logging.info(f"✓ Время {time_slot} зарезервировано: {appointment_id}")
                 return appointment_id
             else:
-                # Изменено с WARNING на DEBUG для уменьшения шума в логах
-                logging.debug(f"Не удалось зарезервировать {time_slot} (слот занят или недоступен)")
                 return None
                 
         except Exception as e:
@@ -417,8 +413,11 @@ class AppointmentService:
         Returns:
             True если найдены и зарегистрированы визиты
         """
-        if not self._session:
-            self._session = self._create_session()
+        # 🔑 ПРИНУДИТЕЛЬНО создаем НОВУЮ сессию для каждого сервиса в RESET-цикле
+        # Это предотвращает ERROR_SESSION_VIOLATION из-за устаревших токенов
+        if self._session:
+            self._session.close()
+        self._session = self._create_session()
         
         logging.info(f"🔄 [RESET] Начало reset-цикла для {service_entry.service_name} с {start_date}")
         
@@ -449,7 +448,10 @@ class AppointmentService:
         for date in available_dates:
             times = self._get_available_times(self._session, service_entry, date, slot_length)
             if not times:
+                logging.info(f"🔄 [RESET] Нет доступных времен на {date}")
                 continue
+            
+            logging.info(f"🔄 [RESET] Проверяем {date}: найдено {len(times)} доступных времен")
             
             successful_registrations = 0
             times_copy = times[:]
@@ -459,6 +461,8 @@ class AppointmentService:
                 times_copy.remove(time_data)
                 time_slot = time_data["time"]
                 total_attempts += 1
+                
+                logging.debug(f"🔄 [RESET] Попытка {total_attempts}: резервирование {date} {time_slot}")
                 
                 # Резервируем время
                 appointment_id = self._reserve_appointment(
@@ -514,9 +518,11 @@ class AppointmentService:
             return True
         else:
             if total_attempts > 0:
-                logging.info(f"📊 [RESET] Все слоты заняты: 0/{total_attempts} попыток для {service_entry.service_name}")
+                success_rate = (total_registered / total_attempts) * 100
+                logging.info(f"📊 [RESET] Все слоты заняты: {total_registered}/{total_attempts} попыток ({success_rate:.1f}% успешных) для {service_entry.service_name}")
+                logging.info(f"🔍 [RESET] Причины неудач: все проверенные слоты уже заняты другими пользователями")
             else:
-                logging.info(f"🔄 [RESET] Reset-цикл завершен без регистраций для {service_entry.service_name}")
+                logging.info(f"🔄 [RESET] Reset-цикл завершен без регистраций для {service_entry.service_name} - нет доступных времен")
             return False
     
     def _get_available_dates_from_date(self, session: requests.Session, 

@@ -65,6 +65,7 @@ class AppointmentBot:
                 
                 # 🆕 ПРОВЕРКА И ЗАПУСК RESET-ЦИКЛА
                 if self.config.reset_cycle_enabled:
+                    logging.info(f"🔄 Проверка reset-цикла: enabled=True, interval={self.config.reset_cycle_interval_hours}h")
                     if should_run_reset_cycle(
                         self.config.reset_cycle_marker_file,
                         self.config.reset_cycle_interval_hours
@@ -73,6 +74,10 @@ class AppointmentBot:
                         logging.info("🔄 Время для reset-цикла наступило!")
                         await self.appointment_service.run_reset_cycle_for_all_services()
                         logging.info("🔄 === КОНЕЦ RESET-ЦИКЛА ===")
+                    else:
+                        logging.info("🔄 Reset-цикл: время еще не наступило")
+                else:
+                    logging.info("🔄 Reset-цикл отключен в настройках")
                 
                 logging.info(f"Следующая проверка через {self.config.repeat_minutes} минут...")
                 

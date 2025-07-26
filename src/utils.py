@@ -398,6 +398,7 @@ def get_server_current_date() -> str:
 def find_dates_from_date(dates: List[dict], start_date: str, max_future_days: int = 30) -> List[str]:
     """
     Находит доступные даты начиная с указанной даты (для reset-цикла).
+    ИСКЛЮЧАЕТ прошлые даты и слишком близкие к текущему времени.
     
     Args:
         dates: Список дат от API
@@ -405,21 +406,28 @@ def find_dates_from_date(dates: List[dict], start_date: str, max_future_days: in
         max_future_days: Максимум дней вперед
         
     Returns:
-        Список доступных дат
+        Список доступных дат (только будущие)
     """
     from datetime import datetime, timedelta
     
     try:
         start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        current_dt = datetime.now()
+        
+        # 🔑 ИСПРАВЛЕНИЕ: Используем дату не раньше завтрашнего дня
+        min_date = max(start_dt, current_dt + timedelta(days=1))
+        min_date_str = min_date.strftime('%Y-%m-%d')
+        
         max_date = start_dt + timedelta(days=max_future_days)
         max_date_str = max_date.strftime('%Y-%m-%d')
         
+        # 🔑 СТРОГО БОЛЬШЕ ИЛИ РАВНО минимальной дате (завтра+)
         filtered_dates = [
             d["date"] for d in dates 
-            if start_date <= d["date"] <= max_date_str
+            if min_date_str <= d["date"] <= max_date_str
         ]
         
-        logging.debug(f"🔍 Reset-цикл: найдено {len(filtered_dates)} дат с {start_date} по {max_date_str}")
+        logging.debug(f"🔍 Reset-цикл: найдено {len(filtered_dates)} дат с {min_date_str} по {max_date_str} (исключены прошлые даты)")
         return filtered_dates
         
     except Exception as e:
